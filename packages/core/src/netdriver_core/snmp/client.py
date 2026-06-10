@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 """SNMP client for basic GET/WALK operations using pysnmp-lextudio."""
 
+import asyncio
+
 from pysnmp.hlapi.asyncio import (  # type: ignore[import]
     CommunityData,
     ContextData,
@@ -51,10 +53,23 @@ _PRIV_PROTOCOLS = {
 class SnmpClient:
     """Async SNMP client wrapping pysnmp-lextudio."""
 
-    def __init__(self, timeout: float = 5.0, retries: int = 1, port: int = 161):
+    _CLOSE_DRAIN_DELAY = 0.1
+
+    def __init__(
+        self,
+        timeout: float = 5.0,
+        retries: int = 1,
+        port: int = 161,
+        engine_pool_size: int = 50,
+    ):
         self._timeout = timeout
         self._retries = retries
         self._port = port
+        self._engine_pool_size = max(1, engine_pool_size)
+        self._engine_pool: asyncio.Queue[SnmpEngine] = asyncio.Queue()
+        self._created_engines = 0
+        self._engines: list[SnmpEngine] = []
+        self._closed = False
 
     async def get(
         self,
@@ -74,25 +89,28 @@ class SnmpClient:
             SnmpResult with {oid: value} data on success.
         """
         auth_data = self._build_auth_data(credential)
+        context = self._build_context_data(credential)
         transport = UdpTransportTarget(
             (host, port or self._port),
             timeout=self._timeout,
             retries=self._retries,
         )
-
         object_types = [ObjectType(ObjectIdentity(oid)) for oid in oids]
+        engine = await self._acquire_engine()
 
         try:
             error_indication, error_status, error_index, var_binds = await getCmd(
-                SnmpEngine(),
+                engine,
                 auth_data,
                 transport,
-                ContextData(),
+                context,
                 *object_types,
             )
         except Exception as e:
             log.debug(f"SNMP GET failed for {host}: {e}")
             return SnmpResult(success=False, error=str(e))
+        finally:
+            self._release_engine(engine)
 
         if error_indication:
             return SnmpResult(success=False, error=str(error_indication))
@@ -127,19 +145,20 @@ class SnmpClient:
             SnmpResult with {oid: value} data on success.
         """
         auth_data = self._build_auth_data(credential)
+        context = self._build_context_data(credential)
         transport = UdpTransportTarget(
             (host, port or self._port),
             timeout=self._timeout,
             retries=self._retries,
         )
-
         data = {}
+        engine = await self._acquire_engine()
         try:
             error_indication, error_status, error_index, var_bind_table = await bulkCmd(
-                SnmpEngine(),
+                engine,
                 auth_data,
                 transport,
-                ContextData(),
+                context,
                 0, 25,  # non-repeaters, max-repetitions
                 ObjectType(ObjectIdentity(oid)),
             )
@@ -159,6 +178,8 @@ class SnmpClient:
         except Exception as e:
             log.debug(f"SNMP WALK failed for {host}: {e}")
             return SnmpResult(success=False, error=str(e))
+        finally:
+            self._release_engine(engine)
 
         return SnmpResult(success=True, data=data)
 
@@ -187,6 +208,8 @@ class SnmpClient:
     @staticmethod
     def _build_auth_data(credential: SnmpCredential):
         """Build pysnmp auth data from credential."""
+        if credential.version == "v1":
+            return CommunityData(credential.community or "public", mpModel=0)
         if credential.version == "v2c":
             return CommunityData(credential.community or "public", mpModel=1)
 
@@ -205,3 +228,53 @@ class SnmpClient:
             authProtocol=auth_proto,
             privProtocol=priv_proto,
         )
+
+    @staticmethod
+    def _build_context_data(credential: SnmpCredential) -> ContextData:
+        """Build SNMP context data, including optional SNMPv3 context name."""
+        return ContextData(contextName=credential.context_name or "")
+
+    async def aclose(self) -> None:
+        """Close the underlying dispatcher after pending datagram callbacks drain."""
+        await asyncio.sleep(self._CLOSE_DRAIN_DELAY)
+        self.close()
+
+    def close(self) -> None:
+        """Close the underlying dispatcher."""
+        if self._closed:
+            return
+        self._closed = True
+        for engine in self._engines:
+            self._close_engine_dispatcher(engine)
+
+    async def _acquire_engine(self) -> SnmpEngine:
+        """Borrow an SNMP engine from the lazy bounded pool."""
+        if self._closed:
+            raise RuntimeError("SNMP client is closed")
+        try:
+            return self._engine_pool.get_nowait()
+        except asyncio.QueueEmpty:
+            pass
+
+        if self._created_engines < self._engine_pool_size:
+            engine = SnmpEngine()
+            self._created_engines += 1
+            self._engines.append(engine)
+            return engine
+
+        return await self._engine_pool.get()
+
+    def _release_engine(self, engine: SnmpEngine) -> None:
+        """Return an SNMP engine to the pool unless the client is closing."""
+        if self._closed:
+            self._close_engine_dispatcher(engine)
+            return
+        self._engine_pool.put_nowait(engine)
+
+    @staticmethod
+    def _close_engine_dispatcher(engine: SnmpEngine) -> None:
+        """Close pysnmp dispatcher tasks so worker shutdown does not leak pending coroutines."""
+        try:
+            engine.closeDispatcher()
+        except Exception as exc:
+            log.debug(f"Failed to close SNMP dispatcher cleanly: {exc}")

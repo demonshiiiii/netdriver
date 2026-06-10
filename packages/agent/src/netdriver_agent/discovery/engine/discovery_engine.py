@@ -37,6 +37,7 @@ class DiscoveryEngine:
         ssh_read_timeout: float = 5.0,
         snmp_timeout: float = 5.0,
         snmp_retries: int = 1,
+        parse_rule_result_mode: str = "overwrite",
         plugin_modules: list[str] | None = None,
     ) -> None:
         self._task_store = task_store
@@ -48,6 +49,7 @@ class DiscoveryEngine:
         self._ssh_read_timeout = ssh_read_timeout
         self._snmp_timeout = snmp_timeout
         self._snmp_retries = snmp_retries
+        self._parse_rule_result_mode = parse_rule_result_mode
         self._plugin_modules = plugin_modules or []
         self._running_tasks: dict[str, subprocess.Popen] = {}
 
@@ -93,6 +95,7 @@ class DiscoveryEngine:
             ssh_read_timeout=self._ssh_read_timeout,
             snmp_timeout=self._snmp_timeout,
             snmp_retries=self._snmp_retries,
+            parse_rule_result_mode=self._parse_rule_result_mode,
             plugin_modules=self._plugin_modules,
         )
 

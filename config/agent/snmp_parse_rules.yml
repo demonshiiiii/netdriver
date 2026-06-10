@@ -1,0 +1,33 @@
+# Vendor keyed SNMP parse rules.
+
+juniper:
+  rules:
+    - oid: "1.3.6.1.2.1.1.1.0"
+      template: |
+        Value MODEL (\S+)
+
+        Start
+          ^Juniper Networks, Inc\. ${MODEL} -> Record
+
+    - oid: "1.3.6.1.2.1.1.1.0"
+      template: |
+        Value VERSION (.+)
+
+        Start
+          ^.*kernel JUNOS ${VERSION},.* -> Record
+
+fortinet:
+  rules:
+    - oid: "1.3.6.1.2.1.1.1.0"
+      template: |
+        Value MODEL (\S+-\S+-\S+)
+
+        Start
+          ^${MODEL}\s+ -> Record
+
+    - oid: "1.3.6.1.2.1.1.1.0"
+      template: |
+        Value VERSION ([vv]\d+\.\d+\.\d+)
+
+        Start
+          ^.*${VERSION} -> Record

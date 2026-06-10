@@ -85,6 +85,11 @@ def test_vendor_oid_map_uses_default_config(
     assert identify_vendor_by_oid("1.3.6.1.4.1.31648.1.1") == "dptech"
     assert identify_vendor_by_oid("1.3.6.1.4.1.50737.1.1") == "chaitin"
     assert identify_vendor_by_oid("1.3.6.1.4.1.65528.1.2") is None
+
+    # Test Cisco OID with and without leading dot
+    assert identify_vendor_by_oid("1.3.6.1.4.1.9.1.2245") == "cisco"
+    assert identify_vendor_by_oid(".1.3.6.1.4.1.9.1.2245") == "cisco"
+
     assert get_vendor_snmp_detail_oids("cisco") == {
         "model": ["1.3.6.1.2.1.47.1.1.1.1.13.1"],
         "version": ["1.3.6.1.2.1.47.1.1.1.1.10.1"],

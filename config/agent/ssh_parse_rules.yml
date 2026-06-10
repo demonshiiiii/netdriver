@@ -1,0 +1,13 @@
+# Vendor keyed SSH parse rules.
+#
+# Example:
+# huawei:
+#   rules:
+#     - command: "display version"
+#       template: |
+#         Value MODEL (.+)
+#         Value VERSION (.+)
+#
+#         Start
+#           ^Model:\\s+${MODEL} -> Continue
+#           ^Version:\\s+${VERSION} -> Record

@@ -3,6 +3,11 @@
 
 from __future__ import annotations
 
+import asyncio
+import re
+from typing import cast
+
+import asyncssh
 import pytest
 
 from netdriver_core.plugin.core import IPluginRegistry, PluginCore
@@ -38,6 +43,15 @@ class _FakeConn:
         assert term_type == "ansi"
         assert term_size == (1000, 100)
         return self._process
+
+
+class _FakeIdentifier:
+    def identify_by_prompt(self, prompt: str) -> list[str]:
+        return []
+
+    @staticmethod
+    def get_probe_plugin(vendor, model="", version=""):
+        return None
 
 
 # --- DeviceIdentifier.identify_by_prompt tests ---
@@ -151,11 +165,25 @@ async def test_identify_device_uses_plugin_when_vendor_known() -> None:
     """When vendor is known, should use plugin's probe command."""
     probe = SshProbe()
     process = _FakeProcess()
-    outputs = iter(["switch-a#", "Cisco IOS Software, Version 15.2(4)M7"])
+    outputs = iter(["Cisco IOS Software, Version 15.2(4)M7"])
+    cisco_prompt_pattern = re.compile(r"^\S+#\s*$", re.MULTILINE)
+    prompt_patterns: list[object] = []
 
-    async def fake_read_until_prompt(process: _FakeProcess) -> str:
+    async def fake_read_prompt(
+        process: _FakeProcess,
+        prompt_pattern: object | None = None,
+    ) -> tuple[str, str]:
+        prompt_patterns.append(prompt_pattern)
+        return "switch-a#", "switch-a#"
+
+    async def fake_read_until_prompt(
+        process: _FakeProcess,
+        cmd: str,
+        union_pattern: object,
+    ) -> str:
         return next(outputs)
 
+    probe._read_prompt = fake_read_prompt  # type: ignore[method-assign]
     probe._read_until_prompt = fake_read_until_prompt  # type: ignore[method-assign]
 
     class _Identifier:
@@ -165,6 +193,11 @@ async def test_identify_device_uses_plugin_when_vendor_known() -> None:
         @staticmethod
         def get_probe_plugin(vendor, model="", version=""):
             class _CiscoPlugin:
+                class PatternHelper:
+                    @staticmethod
+                    def get_union_pattern():
+                        return cisco_prompt_pattern
+
                 @classmethod
                 def get_probe_command(cls):
                     return "show version"
@@ -178,11 +211,11 @@ async def test_identify_device_uses_plugin_when_vendor_known() -> None:
             return _CiscoPlugin
 
     result = await probe._identify_device(
-        conn=_FakeConn(process),
+        conn=cast(asyncssh.SSHClientConnection, _FakeConn(process)),
         host="10.0.0.1",
         port=22,
         credential=SshCredential(username="ops", password="secret"),
-        identifier=_Identifier(),
+        identifier=cast(DeviceIdentifier, _Identifier()),
         read_timeout=1.0,
         selection_profile=DeviceProfile(vendor="cisco", model="isr", version=""),
     )
@@ -190,6 +223,7 @@ async def test_identify_device_uses_plugin_when_vendor_known() -> None:
     assert result.device_info is not None
     assert result.device_info.vendor == "cisco"
     assert result.device_info.model == "ISR4451"
+    assert prompt_patterns == [cisco_prompt_pattern]
     assert process.stdin.writes == ["show version\n"]
 
 
@@ -199,11 +233,23 @@ async def test_identify_device_tries_prompt_matching_when_vendor_unknown() -> No
     """When vendor is unknown, should match prompt and try candidate plugins."""
     probe = SshProbe()
     process = _FakeProcess()
-    outputs = iter(["<huawei-switch>", "Huawei CE6857 Version V200R021"])
+    outputs = iter(["Huawei CE6857 Version V200R021"])
 
-    async def fake_read_until_prompt(process: _FakeProcess) -> str:
+    async def fake_read_prompt(
+        process: _FakeProcess,
+        prompt_pattern: object | None = None,
+    ) -> tuple[str, str]:
+        assert prompt_pattern is SshProbe._GENERIC_PROMPT_PATTERN
+        return "<huawei-switch>", "<huawei-switch>"
+
+    async def fake_read_until_prompt(
+        process: _FakeProcess,
+        cmd: str,
+        union_pattern: object,
+    ) -> str:
         return next(outputs)
 
+    probe._read_prompt = fake_read_prompt  # type: ignore[method-assign]
     probe._read_until_prompt = fake_read_until_prompt  # type: ignore[method-assign]
 
     class _Identifier:
@@ -227,11 +273,11 @@ async def test_identify_device_tries_prompt_matching_when_vendor_unknown() -> No
             return _HuaweiPlugin
 
     result = await probe._identify_device(
-        conn=_FakeConn(process),
+        conn=cast(asyncssh.SSHClientConnection, _FakeConn(process)),
         host="10.0.0.2",
         port=22,
         credential=SshCredential(username="ops", password="secret"),
-        identifier=_Identifier(),
+        identifier=cast(DeviceIdentifier, _Identifier()),
         read_timeout=1.0,
         selection_profile=DeviceProfile(),
     )
@@ -248,11 +294,23 @@ async def test_identify_device_falls_back_to_default_probe() -> None:
     """When no candidate plugins match, should fall back to PluginCore default."""
     probe = SshProbe()
     process = _FakeProcess()
-    outputs = iter(["unknown-prompt$", "Cisco IOS Version 17.9.4"])
+    outputs = iter(["Cisco IOS Version 17.9.4"])
 
-    async def fake_read_until_prompt(process: _FakeProcess) -> str:
+    async def fake_read_prompt(
+        process: _FakeProcess,
+        prompt_pattern: object | None = None,
+    ) -> tuple[str, str]:
+        assert prompt_pattern is SshProbe._GENERIC_PROMPT_PATTERN
+        return "unknown-prompt$", "unknown-prompt$"
+
+    async def fake_read_until_prompt(
+        process: _FakeProcess,
+        cmd: str,
+        union_pattern: object,
+    ) -> str:
         return next(outputs)
 
+    probe._read_prompt = fake_read_prompt  # type: ignore[method-assign]
     probe._read_until_prompt = fake_read_until_prompt  # type: ignore[method-assign]
 
     class _Identifier:
@@ -264,11 +322,11 @@ async def test_identify_device_falls_back_to_default_probe() -> None:
             return None
 
     result = await probe._identify_device(
-        conn=_FakeConn(process),
+        conn=cast(asyncssh.SSHClientConnection, _FakeConn(process)),
         host="10.0.0.3",
         port=22,
         credential=SshCredential(username="ops", password="secret"),
-        identifier=_Identifier(),
+        identifier=cast(DeviceIdentifier, _Identifier()),
         read_timeout=1.0,
         selection_profile=DeviceProfile(),
     )
@@ -278,3 +336,36 @@ async def test_identify_device_falls_back_to_default_probe() -> None:
     assert result.device_info.vendor == "cisco"
     # Fallback probe command is "show version"
     assert process.stdin.writes == ["show version\n"]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_probe_retries_connect_timeout_and_reports_timeout_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+
+    async def fake_connect(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        raise asyncio.TimeoutError
+
+    monkeypatch.setattr(
+        "netdriver_agent.discovery.probe.base_ssh_probe.asyncssh.connect",
+        fake_connect,
+    )
+    monkeypatch.setattr(SshProbe, "_CONNECT_RETRY_DELAY", 0.0)
+
+    result = await SshProbe().probe(
+        host="10.0.0.1",
+        port=22,
+        credentials=[SshCredential(username="admin", password="secret")],
+        identifier=cast(DeviceIdentifier, _FakeIdentifier()),
+        connect_timeout=0.1,
+        read_timeout=0.1,
+    )
+
+    assert attempts == 2
+    assert result.success is False
+    assert result.failure_reason == "timeout"
+    assert result.error == "All SSH credentials timed out"

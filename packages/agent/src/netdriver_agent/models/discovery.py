@@ -12,6 +12,7 @@ from netdriver_agent.models.common import CommonResponse
 
 class SshCredentialModel(BaseModel):
     """SSH credential in API request."""
+    name: str = ""
     username: str
     password: str
     enable_password: str = ""
@@ -19,6 +20,7 @@ class SshCredentialModel(BaseModel):
 
 class SnmpCredentialModel(BaseModel):
     """SNMP credential in API request."""
+    name: str = ""
     community: str | None = None
     version: str = "v2c"
     username: str | None = None
@@ -26,6 +28,65 @@ class SnmpCredentialModel(BaseModel):
     auth_password: str | None = None
     priv_protocol: str | None = None
     priv_password: str | None = None
+    context_name: str | None = None
+
+    @field_validator("version")
+    @classmethod
+    def validate_version(cls, version: str) -> str:
+        normalized = version.strip().lower()
+        if normalized not in {"v1", "v2c", "v3"}:
+            raise ValueError("version must be one of v1, v2c, or v3")
+        return normalized
+
+
+class SnmpCollectRequest(BaseModel):
+    """Request body for POST /api/v1/discovery/snmp/collect."""
+
+    ip: str = Field(description="Target IP address", examples=["192.168.1.1"])
+    port: int = Field(default=161, ge=1, le=65535, description="SNMP port")
+    oid: str = Field(
+        description="OID to query",
+        examples=["1.3.6.1.2.1.1.1.0"],
+    )
+    timeout_secs: int = Field(default=5, ge=1, description="Request timeout in seconds")
+    version: str = Field(default="v2c", description="SNMP version", examples=["v2c"])
+    community: str | None = None
+    username: str | None = None
+    auth_protocol: str | None = None
+    auth_password: str | None = None
+    priv_protocol: str | None = None
+    priv_password: str | None = None
+    context_name: str | None = None
+
+    @field_validator("oid")
+    @classmethod
+    def validate_oid(cls, oid: str) -> str:
+        """Ensure the OID uses dotted numeric form."""
+        normalized = oid.strip()
+        parts = normalized.split(".")
+        if (
+            not normalized
+            or any(not part.isdigit() for part in parts)
+            or any(part == "" for part in parts)
+        ):
+            raise ValueError("OID must be a dotted numeric string")
+        return normalized
+
+    @field_validator("version")
+    @classmethod
+    def validate_version(cls, version: str) -> str:
+        """Restrict supported SNMP versions."""
+        normalized = version.strip().lower()
+        if normalized not in {"v1", "v2c", "v3"}:
+            raise ValueError("version must be one of v1, v2c, or v3")
+        return normalized
+
+
+class SnmpCollectResponse(CommonResponse):
+    """Response for POST /api/v1/discovery/snmp/collect."""
+
+    success: bool
+    value: str | None = None
 
 
 class DiscoveryPortsModel(BaseModel):
@@ -102,11 +163,52 @@ class DiscoveredDeviceModel(BaseModel):
     model: str = ""
     version: str = ""
     hostname: str = ""
+    device_type: str = ""
     serial_number: str = ""
     method: str = ""
+    protocol: list[str] = Field(default_factory=list)
+    snmp_port: int | None = None
+    snmp_credential_name: str | None = None
+    ssh_port: int | None = None
+    ssh_credential_name: str | None = None
     ssh_username: str | None = None
     snmp_community: str | None = None
     discovered_at: str | None = None
+
+
+class DiscoveryHostLogModel(BaseModel):
+    id: int | None = None
+    task_id: str = ""
+    ip: str = ""
+    host_result_id: int | None = None
+    step_code: str = ""
+    step: str = ""
+    status: str = ""
+    message: str = ""
+    created_at: str | None = None
+
+
+class DiscoveryHostResultModel(BaseModel):
+    id: int | None = None
+    task_id: str = ""
+    ip: str
+    status: str = "Scanning"
+    result_key: str = "scanning"
+    error_message: str = ""
+    protocol: list[str] = Field(default_factory=list)
+    snmp_port: int | None = None
+    snmp_credential_name: str | None = None
+    ssh_port: int | None = None
+    ssh_credential_name: str | None = None
+    hostname: str | None = None
+    vendor: str | None = None
+    model: str | None = None
+    version: str | None = None
+    device_type: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    duration_ms: int | None = None
+    logs: list[DiscoveryHostLogModel] = Field(default_factory=list)
 
 
 class DiscoveryResponse(CommonResponse):
@@ -125,6 +227,17 @@ class DiscoveryStatusResponse(CommonResponse):
     error_message: str = ""
     created_at: str | None = None
     updated_at: str | None = None
+
+
+class DiscoveryHostResultsResponse(CommonResponse):
+    task_id: str
+    hosts: list[DiscoveryHostResultModel] = Field(default_factory=list)
+
+
+class DiscoveryHostLogsResponse(CommonResponse):
+    task_id: str
+    ip: str
+    logs: list[DiscoveryHostLogModel] = Field(default_factory=list)
 
 
 class DiscoveryTaskSummary(BaseModel):

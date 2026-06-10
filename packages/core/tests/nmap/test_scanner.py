@@ -50,7 +50,7 @@ async def test_scan_uses_default_ports_when_ports_omitted(
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_scan_ports_returns_only_hosts_with_open_target_ports(
+async def test_scan_ports_returns_hosts_with_and_without_matching_target_ports(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     scanner = _build_scanner(monkeypatch)
@@ -106,7 +106,89 @@ async def test_scan_ports_returns_only_hosts_with_open_target_ports(
             open_ports=[161],
             snmp_ports=[161],
         ),
+        ScanResult(
+            ip="192.168.1.12",
+        ),
     ]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_scan_ports_fills_missing_targets_not_returned_by_nmap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scanner = _build_scanner(monkeypatch)
+
+    def fake_run_port_scan(
+        target: str,
+        ssh_ports: list[int],
+        snmp_ports: list[int],
+    ) -> dict[str, dict[str, Any]]:
+        assert target == "192.168.1.10 192.168.1.11 192.168.1.12"
+        assert ssh_ports == [22]
+        assert snmp_ports == [161]
+        return {
+            "192.168.1.10": {
+                "tcp": {
+                    22: {"state": "open"},
+                },
+            },
+        }
+
+    monkeypatch.setattr(scanner, "_run_port_scan", fake_run_port_scan)
+
+    results = await scanner.scan_ports(
+        ["192.168.1.10", "192.168.1.11", "192.168.1.12"],
+        ssh_ports=[22],
+        snmp_ports=[161],
+    )
+
+    assert results == [
+        ScanResult(
+            ip="192.168.1.10",
+            has_ssh=True,
+            open_ports=[22],
+            ssh_ports=[22],
+        ),
+        ScanResult(ip="192.168.1.11"),
+        ScanResult(ip="192.168.1.12"),
+    ]
+
+
+@pytest.mark.unit
+def test_expand_targets_supports_cidr_range_and_dedup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scanner = _build_scanner(monkeypatch)
+
+    expanded = scanner._expand_targets(
+        [
+            "192.168.1.0/30",
+            "192.168.1.2-192.168.1.4",
+            "192.168.1.4",
+            "10.0.0.1-3",
+        ]
+    )
+
+    assert expanded == [
+        "192.168.1.1",
+        "192.168.1.2",
+        "192.168.1.3",
+        "192.168.1.4",
+        "10.0.0.1",
+        "10.0.0.2",
+        "10.0.0.3",
+    ]
+
+
+@pytest.mark.unit
+def test_expand_targets_rejects_descending_short_range(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scanner = _build_scanner(monkeypatch)
+
+    with pytest.raises(ValueError, match="invalid IP range: 10.0.0.10-1"):
+        scanner._expand_targets(["10.0.0.10-1"])
 
 
 @pytest.mark.unit

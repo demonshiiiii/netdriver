@@ -13,6 +13,7 @@ class SshCredential:
     """SSH credential for authentication."""
     username: str
     password: str
+    name: str = ""
     enable_password: str = ""
 
 
@@ -86,6 +87,7 @@ class SshProbeResult:
     device_info: DeviceInfo | None = None
     raw_output: str = ""
     error: str = ""
+    failure_reason: str = ""
 
 
 @dataclass

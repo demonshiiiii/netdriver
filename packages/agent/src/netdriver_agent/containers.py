@@ -31,12 +31,15 @@ class Container(DeclarativeContainer):
         ssh_read_timeout=config.discovery.ssh.read_timeout,
         snmp_timeout=config.discovery.snmp.timeout,
         snmp_retries=config.discovery.snmp.retries,
+        parse_rule_result_mode=config.discovery.parse_rule_result_mode,
         plugin_modules=["netdriver_agent.plugins"],
     )
     discovery_handler = Factory(
         DiscoveryRequestHandler,
         engine=discovery_engine,
         task_store=task_store,
+        max_tasks=config.discovery.task.max_tasks,
+        snmp_retries=config.discovery.snmp.retries,
     )
 
 
@@ -50,9 +53,26 @@ def configure_discovery_vendor_map() -> None:
     vendor_map_file = container.config.discovery.vendor_map_file()
     if vendor_map_file:
         os.environ["NETDRIVER_DISCOVERY_VENDOR_MAP"] = vendor_map_file
-        return
+    else:
+        os.environ.pop("NETDRIVER_DISCOVERY_VENDOR_MAP", None)
 
-    os.environ.pop("NETDRIVER_DISCOVERY_VENDOR_MAP", None)
+    snmp_parse_rules_file = container.config.discovery.snmp_parse_rules_file()
+    if snmp_parse_rules_file:
+        os.environ["NETDRIVER_DISCOVERY_SNMP_PARSE_RULES"] = snmp_parse_rules_file
+    else:
+        os.environ.pop("NETDRIVER_DISCOVERY_SNMP_PARSE_RULES", None)
+
+    ssh_parse_rules_file = container.config.discovery.ssh_parse_rules_file()
+    if ssh_parse_rules_file:
+        os.environ["NETDRIVER_DISCOVERY_SSH_PARSE_RULES"] = ssh_parse_rules_file
+    else:
+        os.environ.pop("NETDRIVER_DISCOVERY_SSH_PARSE_RULES", None)
+
+    ingest_rules_file = container.config.discovery.ingest_rules_file()
+    if ingest_rules_file:
+        os.environ["NETDRIVER_DISCOVERY_INGEST_RULES"] = ingest_rules_file
+    else:
+        os.environ.pop("NETDRIVER_DISCOVERY_INGEST_RULES", None)
 
 
 container = Container()

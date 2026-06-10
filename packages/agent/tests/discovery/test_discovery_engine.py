@@ -3,13 +3,16 @@
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass
+from typing import Any, cast
 
 import pytest
 
 from netdriver_core.snmp.models import SnmpCredential
 from netdriver_agent.discovery.engine.discovery_engine import DiscoveryEngine
 from netdriver_agent.discovery.engine.models import TaskStatus
+from netdriver_agent.discovery.engine.task_store import TaskStore
 from netdriver_agent.discovery.engine.worker import DiscoveryWorkerPayload
 from netdriver_agent.discovery.probe.models import SshCredential
 
@@ -57,7 +60,7 @@ async def test_start_discovery_launches_worker_subprocess(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     task_store = _FakeTaskStore()
-    captured: dict[str, object] = {}
+    captured: dict[str, Any] = {}
 
     def fake_popen(command: list[str], start_new_session: bool) -> _FakePopen:
         captured["command"] = command
@@ -67,7 +70,7 @@ async def test_start_discovery_launches_worker_subprocess(
     monkeypatch.setattr("subprocess.Popen", fake_popen)
 
     engine = DiscoveryEngine(
-        task_store=task_store,
+        task_store=cast(TaskStore, task_store),
         db_path="/tmp/discovery.db",
         nmap_path="/usr/bin/nmap",
         max_concurrent_probes=20,
@@ -82,8 +85,10 @@ async def test_start_discovery_launches_worker_subprocess(
         targets=["10.0.0.0/24"],
         ssh_ports=[22],
         snmp_ports=[161],
-        ssh_credentials=[SshCredential(username="admin", password="secret")],
-        snmp_credentials=[SnmpCredential(community="public")],
+        ssh_credentials=[
+            SshCredential(name="ops-ssh", username="admin", password="secret")
+        ],
+        snmp_credentials=[SnmpCredential(name="dc-snmp", community="public")],
         max_concurrent_probes=99,
         probe_timeout=7.5,
     )
@@ -105,10 +110,16 @@ async def test_start_discovery_launches_worker_subprocess(
     assert payload.max_concurrent_probes == 99
     assert payload.probe_timeout == 7.5
     assert payload.ssh_credentials == [
-        {"username": "admin", "password": "secret", "enable_password": ""}
+        {
+            "username": "admin",
+            "password": "secret",
+            "name": "ops-ssh",
+            "enable_password": "",
+        }
     ]
     assert payload.snmp_credentials == [
         {
+            "name": "dc-snmp",
             "community": "public",
             "version": "v2c",
             "username": None,
@@ -116,6 +127,7 @@ async def test_start_discovery_launches_worker_subprocess(
             "auth_password": None,
             "priv_protocol": None,
             "priv_password": None,
+            "context_name": None,
         }
     ]
     assert captured["start_new_session"] is True
@@ -127,9 +139,9 @@ async def test_cancel_task_terminates_worker_and_marks_task_cancelled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     task_store = _FakeTaskStore()
-    engine = DiscoveryEngine(task_store=task_store)
+    engine = DiscoveryEngine(task_store=cast(TaskStore, task_store))
     process = _FakePopen([], True)
-    engine._running_tasks["task-123"] = process
+    engine._running_tasks["task-123"] = cast(subprocess.Popen, process)
 
     terminated: list[int] = []
     monkeypatch.setattr(

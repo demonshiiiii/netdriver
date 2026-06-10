@@ -3,7 +3,7 @@
 """Discovery API endpoints."""
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import Depends
+from fastapi import Depends, Query
 from fastapi.routing import APIRouter
 
 from netdriver_agent.containers import Container
@@ -12,8 +12,12 @@ from netdriver_agent.models.common import CommonResponse
 from netdriver_agent.models.discovery import (
     DiscoveryRequest,
     DiscoveryResponse,
+    DiscoveryHostLogsResponse,
+    DiscoveryHostResultsResponse,
     DiscoveryStatusResponse,
     DiscoveryTaskSummary,
+    SnmpCollectRequest,
+    SnmpCollectResponse,
 )
 from netdriver_agent.route import LoggingApiRoute
 
@@ -29,6 +33,16 @@ async def start_discovery(
 ) -> DiscoveryResponse:
     """Start a network device auto-discovery task."""
     return await handler.start_discovery(request)
+
+
+@router.post("/snmp/collect", summary="Run a single SNMP GET")
+@inject
+async def collect_snmp(
+    request: SnmpCollectRequest,
+    handler: DiscoveryRequestHandler = Depends(Provide[Container.discovery_handler]),
+) -> SnmpCollectResponse:
+    """Run a single SNMP GET request against a target device."""
+    return await handler.collect_snmp(request)
 
 
 @router.get("", summary="List all discovery tasks")
@@ -48,6 +62,26 @@ async def get_task_status(
 ) -> DiscoveryStatusResponse:
     """Get discovery task status and results."""
     return await handler.get_task_status(task_id)
+
+
+@router.get("/{task_id}/hosts", summary="Get discovery task host results")
+@inject
+async def get_task_hosts(
+    task_id: str,
+    include_logs: bool = Query(default=False),
+    handler: DiscoveryRequestHandler = Depends(Provide[Container.discovery_handler]),
+) -> DiscoveryHostResultsResponse:
+    return await handler.get_task_hosts(task_id, include_logs=include_logs)
+
+
+@router.get("/{task_id}/hosts/{ip}/logs", summary="Get discovery host logs")
+@inject
+async def get_task_host_logs(
+    task_id: str,
+    ip: str,
+    handler: DiscoveryRequestHandler = Depends(Provide[Container.discovery_handler]),
+) -> DiscoveryHostLogsResponse:
+    return await handler.get_task_host_logs(task_id, ip)
 
 
 @router.delete("/{task_id}", summary="Cancel a discovery task")

@@ -22,7 +22,7 @@ RUN uv build --directory packages/core --wheel \
     && uv build --directory packages/agent --wheel
 
 # Final stage
-FROM ghcr.io/astral-sh/uv:python3.12-trixie
+FROM ghcr.io/astral-sh/uv:python3.12-trixie-slim
 
 LABEL org.opencontainers.image.source="https://github.com/OpenSecFlow/netdriver"
 LABEL org.opencontainers.image.description="NetDriver Agent - Network Device Automation REST API"
@@ -32,6 +32,12 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_PYTHON=python3.12
+ENV NMAP_PRIVILEGED=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nmap libcap2-bin \
+    && setcap cap_net_raw+eip /usr/bin/nmap \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN useradd -m -u 1000 netdriver
@@ -57,7 +63,7 @@ EXPOSE 8000
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV FATSTAPI_ENV=production
-ENV NETDRIVER_CONFIG_PATH=/app/config/agent/agent.yml
+ENV NETDRIVER_AGENT_CONFIG=/app/config/agent/agent.yml
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

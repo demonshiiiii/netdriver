@@ -3,6 +3,7 @@
 """Nmap scanner for network host discovery and port scanning."""
 
 import asyncio
+import ipaddress
 import os
 import shutil
 
@@ -42,7 +43,7 @@ class NmapScanner:
         ssh_ports: list[int] | None = None,
         snmp_ports: list[int] | None = None,
     ) -> list[ScanResult]:
-        """Scan target ports directly and return reachable hosts.
+        """Scan target ports directly and return scanned host results.
 
         Args:
             targets: List of CIDR or IP ranges (e.g. ["192.168.1.0/24", "10.0.0.1-10"]).
@@ -50,7 +51,8 @@ class NmapScanner:
             snmp_ports: UDP ports to scan for SNMP. Defaults to [161].
 
         Returns:
-            List of ScanResult for hosts with at least one target port open.
+            List of ScanResult for hosts returned by nmap, including hosts
+            without any matching SSH or SNMP target ports.
         """
         resolved_ssh_ports = ssh_ports if ssh_ports is not None else DEFAULT_SSH_PORTS
         resolved_snmp_ports = snmp_ports if snmp_ports is not None else DEFAULT_SNMP_PORTS
@@ -80,7 +82,8 @@ class NmapScanner:
             snmp_ports: UDP ports to scan for SNMP. Defaults to [161].
 
         Returns:
-            List of ScanResult with at least one open target port.
+            List of ScanResult for hosts returned by nmap. Hosts without any
+            matching SSH or SNMP target ports are returned with empty port lists.
         """
         resolved_ssh_ports = self._normalize_ports(
             ssh_ports if ssh_ports is not None else DEFAULT_SSH_PORTS
@@ -98,6 +101,7 @@ class NmapScanner:
         )
 
         try:
+            expanded_hosts = self._expand_targets(hosts)
             result = await asyncio.to_thread(
                 self._run_port_scan,
                 target_str,
@@ -108,11 +112,16 @@ class NmapScanner:
             raise DiscoveryScanFailed(f"Port scan failed: {e}") from e
 
         results = []
-        for ip, data in result.items():
+        seen_hosts: set[str] = set()
+        for ip in expanded_hosts:
+            seen_hosts.add(ip)
+            data = result.get(ip, {})
+            scan_result = ScanResult(ip=ip)
             if not isinstance(data, dict):
+                results.append(scan_result)
                 continue
 
-            scan_result = ScanResult(ip=ip)
+            scan_result.hostname = self._extract_hostname(data)
 
             # Extract port status
             tcp_ports = data.get("tcp", {})
@@ -138,10 +147,15 @@ class NmapScanner:
                     scan_result.snmp_ports.append(port_int)
                     scan_result.has_snmp = True
 
-            if scan_result.open_ports:
-                results.append(scan_result)
+            results.append(scan_result)
 
-        log.info(f"Port scan complete: {len(results)} reachable host(s) found")
+        for ip, data in result.items():
+            if ip in seen_hosts or not isinstance(data, dict):
+                continue
+            scan_result = ScanResult(ip=ip, hostname=self._extract_hostname(data))
+            results.append(scan_result)
+
+        log.info(f"Port scan complete: {len(results)} host result(s) collected")
         return results
 
     @staticmethod
@@ -193,3 +207,69 @@ class NmapScanner:
         )
         nm.scan(hosts=target, arguments=arguments)
         return {host: nm[host] for host in nm.all_hosts()}
+
+    @classmethod
+    def _expand_targets(cls, targets: list[str]) -> list[str]:
+        """Expand target CIDRs/ranges into a de-duplicated IPv4 list."""
+        expanded: list[str] = []
+        seen: set[int] = set()
+        for target in targets:
+            start, end = cls._parse_target_bounds(target)
+            for ip_num in range(start, end + 1):
+                if ip_num in seen:
+                    continue
+                seen.add(ip_num)
+                expanded.append(str(ipaddress.IPv4Address(ip_num)))
+        return expanded
+
+    @staticmethod
+    def _extract_hostname(data: dict) -> str | None:
+        hostnames = data.get("hostnames", [])
+        if not isinstance(hostnames, list):
+            return None
+        for item in hostnames:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name", "")).strip()
+            if name:
+                return name
+        return None
+
+    @classmethod
+    def _parse_target_bounds(cls, target: str) -> tuple[int, int]:
+        normalized = target.strip()
+        if not normalized:
+            raise ValueError("target must not be empty")
+        if "/" in normalized:
+            return cls._parse_cidr_bounds(normalized)
+        if "-" in normalized:
+            return cls._parse_ip_range_bounds(normalized)
+        ip = ipaddress.IPv4Address(normalized)
+        ip_num = int(ip)
+        return ip_num, ip_num
+
+    @staticmethod
+    def _parse_ip_range_bounds(target: str) -> tuple[int, int]:
+        start_text, end_text = [part.strip() for part in target.split("-", maxsplit=1)]
+        start_address = ipaddress.IPv4Address(start_text)
+        if "." in end_text:
+            end_address = ipaddress.IPv4Address(end_text)
+        else:
+            prefix = str(start_address).rsplit(".", maxsplit=1)[0]
+            end_address = ipaddress.IPv4Address(f"{prefix}.{end_text}")
+        start = int(start_address)
+        end = int(end_address)
+        if start > end:
+            raise ValueError(f"invalid IP range: {target}")
+        return start, end
+
+    @staticmethod
+    def _parse_cidr_bounds(target: str) -> tuple[int, int]:
+        network = ipaddress.IPv4Network(target, strict=False)
+        network_addr = int(network.network_address)
+        broadcast_addr = int(network.broadcast_address)
+        if network.prefixlen == 32:
+            return network_addr, network_addr
+        if network.prefixlen == 31:
+            return network_addr, broadcast_addr
+        return network_addr + 1, broadcast_addr - 1

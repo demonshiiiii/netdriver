@@ -1,11 +1,11 @@
 api:
   # HTTP request log level
   # - INFO: only output request method and path;
-  # - DEBUG: output detailed request body; 
+  # - DEBUG: output detailed request body;
   request_log_level: DEBUG
 logging:
   # INFO / DEBUG / TRACE
-  level: INFO
+  level: DEBUG
   # Log file path for agent
   log_file: logs/agent.log
   intercept_loggers:
@@ -73,6 +73,14 @@ discovery:
   nmap_path: nmap
   # Vendor OID mapping file
   vendor_map_file: config/agent/vendor_oid_map.yml
+  # SNMP discovery parse rules
+  snmp_parse_rules_file: config/agent/snmp_parse_rules.yml
+  # SSH discovery parse rules
+  ssh_parse_rules_file: config/agent/ssh_parse_rules.yml
+  # Discovery ingest mapping rules
+  ingest_rules_file: config/agent/discovery_ingest_rules.yml
+  # Discovery parse rule result strategy: overwrite or merge
+  parse_rule_result_mode: overwrite
   # SQLite database path for task persistence
   db_path: data/discovery.db
   # Maximum concurrent probes per task

@@ -174,9 +174,19 @@ def _build_vendor_prefix_index() -> list[tuple[str, str]]:
 
 
 def identify_vendor_by_oid(sys_object_id: str) -> str | None:
-    """Identify vendor by longest sysObjectID prefix match."""
+    """Identify vendor by longest sysObjectID prefix match.
+
+    Args:
+        sys_object_id: The SNMP sysObjectID value (with or without leading dot).
+
+    Returns:
+        Vendor name or None.
+    """
+    # Normalize: remove leading dot if present
+    normalized_oid = sys_object_id.lstrip('.')
+
     for prefix, vendor in _build_vendor_prefix_index():
-        if sys_object_id.startswith(prefix):
+        if normalized_oid.startswith(prefix):
             return vendor
     return None
 

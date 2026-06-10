@@ -173,11 +173,18 @@ uvicorn netdriver.agent.main:app --host 0.0.0.0 --port 8000
 ```bash
 docker run -d \
   --name netdriver-agent \
+  --cap-add=NET_RAW \
   -p 8000:8000 \
   -v $(pwd)/config:/app/config \
   -v $(pwd)/logs:/app/logs \
   ghcr.io/opensecflow/netdriver/netdriver-agent:latest
 ```
+
+The agent image includes `nmap` for discovery scans. `--cap-add=NET_RAW` is required
+for privileged nmap scan modes used by UDP/SNMP discovery while still running the
+application as a non-root user. If the agent needs to discover devices on the
+host's directly connected network, run it with `--network host` instead of
+publishing only port `8000`.
 
 validate docker running
 
@@ -416,7 +423,7 @@ Start
   ^hostname:\s+${HOSTNAME}
   ^ip-address:\s+${IP}
   ^model:\s+${MODEL}
-  ^sw-version:\s+${VERSION} -> Record 
+  ^sw-version:\s+${VERSION} -> Record
 ```
 
 Request
@@ -487,7 +494,6 @@ Check `ret`, it got a object list parsed by Textfsm.
 - ✅ Started the Agent service (via PyPI or Docker)
 - ✅ Connected to network devices via REST API
 - ✅ Executed commands and retrieved structured data
-
 
 **API Capabilities**:
 
