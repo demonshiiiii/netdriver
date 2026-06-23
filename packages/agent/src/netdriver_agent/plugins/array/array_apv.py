@@ -15,3 +15,4 @@ class ArrayAPV(ArrayBase):
         version="base",
         description="Array APV Plugin"
     )
+    _CMD_CONFIG = "config terminal"

@@ -3,6 +3,7 @@
 # Import all vendor base classes to trigger IPluginRegistry registration
 from netdriver_agent.plugins.arista.arista import AristaBase
 from netdriver_agent.plugins.array.array import ArrayBase
+from netdriver_agent.plugins.aruba.aruba import ArubaBase
 from netdriver_agent.plugins.chaitin.chaitin import ChaiTinBase
 from netdriver_agent.plugins.check_point.check_point import CheckPointBase
 from netdriver_agent.plugins.cisco.cisco import CiscoBase
@@ -24,5 +25,5 @@ __all__ = [
     "CiscoBase", "DptechBase", "FortinetBase", "H3CBase",
     "HillstoneBase", "HuaweiBase", "JuniperBase", "LeadsecBase",
     "MaiPuBase", "PaloaltoBase", "QiAnXinBase", "TopSecBase",
-    "VenustechBase",
+    "VenustechBase","ArubaBase"
 ]

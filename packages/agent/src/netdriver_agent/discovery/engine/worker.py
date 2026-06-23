@@ -27,13 +27,11 @@ from netdriver_agent.discovery.engine.models import (
     TaskStatus,
 )
 from netdriver_agent.discovery.engine.task_store import TaskStore
-from netdriver_agent.discovery.ingest import apply_ingest_rules
 from netdriver_agent.discovery.oid.vendor_oid_map import get_vendor_snmp_detail_oids
 from netdriver_agent.discovery.parsing import (
     DiscoveryFieldMap,
     get_snmp_parse_rules,
-    get_ssh_parse_rules,
-    parse_discovery_template,
+    parse_discovery_template
 )
 from netdriver_agent.discovery.probe.base_ssh_probe import SshProbe
 from netdriver_agent.discovery.probe.identifier import DeviceIdentifier
@@ -546,7 +544,6 @@ class DiscoveryTaskWorker:
             )
 
         if device.vendor or device.method:
-            self._apply_ingest_rules_to_device(device)
             await self._task_store.add_device(task_id, device)
             protocol = self._resolve_result_protocol(
                 device,
@@ -1035,22 +1032,6 @@ class DiscoveryTaskWorker:
             "username": result.credential.username if result.credential else "",
             "raw_data": result.raw_output,
         }
-        vendor_key = self._normalize_value(device_data.get("vendor"))
-        if not vendor_key and selection_profile is not None:
-            vendor_key = self._normalize_value(selection_profile.vendor)
-
-        if vendor_key and result.credential is not None:
-            parsed_fields, raw_output = await self._run_ssh_parse_rules(
-                host=host,
-                port=port,
-                credential=result.credential,
-                vendor_key=vendor_key,
-            )
-            self._apply_parsed_fields(device_data, parsed_fields)
-            device_data["raw_data"] = self._merge_raw_data(
-                device_data["raw_data"],
-                raw_output,
-            )
 
         return device_data
 
@@ -1125,82 +1106,6 @@ class DiscoveryTaskWorker:
             )
         return parsed_fields
 
-    async def _run_ssh_parse_rules(
-        self,
-        *,
-        host: str,
-        port: int,
-        credential: SshCredential,
-        vendor_key: str,
-    ) -> tuple[DiscoveryFieldMap, str]:
-        """Execute configured SSH parse rules for a vendor."""
-        rules = get_ssh_parse_rules(vendor_key)
-        if not rules:
-            return {}, ""
-
-        log.debug(
-            f"Discovery SSH parse rules start for {host}:{port} "
-            f"vendor={vendor_key!r} rule_count={len(rules)}"
-        )
-
-        probe = SshProbe()
-        try:
-            outputs = await probe.execute_commands(
-                host,
-                port,
-                credential,
-                [rule.command for rule in rules],
-                connect_timeout=self._ssh_connect_timeout,
-                read_timeout=self._ssh_read_timeout,
-            )
-        except Exception as exc:
-            log.warning(
-                "Discovery SSH parse rules failed for %s:%s with credential %r: %s",
-                host,
-                port,
-                credential.name or credential.username,
-                exc,
-            )
-            return {}, ""
-
-        parsed_fields: DiscoveryFieldMap = {}
-        raw_parts: list[str] = []
-        for rule, output in zip(rules, outputs, strict=False):
-            log.debug(
-                f"Discovery SSH parse rule response for {host}:{port} "
-                f"command={rule.command!r} output={output!r}"
-            )
-            if output:
-                raw_parts.append(f"$ {rule.command}\n{output}")
-            if not output:
-                continue
-            try:
-                parsed_result = parse_discovery_template(rule.template, output)
-                log.debug(
-                    f"Discovery SSH parse rule parsed fields for {host}:{port} "
-                    f"command={rule.command!r} fields={parsed_result!r}"
-                )
-                self._merge_discovery_fields(
-                    parsed_fields,
-                    parsed_result,
-                )
-            except Exception as exc:
-                log.warning(
-                    "Discovery SSH parse rule for command %r failed for %s:%s: %s",
-                    rule.command,
-                    host,
-                    port,
-                    exc,
-                )
-
-        if vendor_key and not parsed_fields.get("vendor"):
-            parsed_fields["vendor"] = vendor_key
-        log.debug(
-            f"Discovery SSH parse rules final fields for {host}:{port} "
-            f"vendor={vendor_key!r} fields={parsed_fields!r}"
-        )
-        return parsed_fields, "\n\n".join(raw_parts)
-
     @staticmethod
     def _merge_discovery_fields(
         target: DiscoveryFieldMap,
@@ -1243,22 +1148,6 @@ class DiscoveryTaskWorker:
             mode,
         )
         return "overwrite"
-
-    @staticmethod
-    def _apply_ingest_rules_to_device(device: DiscoveredDevice) -> None:
-        """Apply ingest mappings to final discovery fields before persistence."""
-        mapped_values = apply_ingest_rules(
-            {
-                "vendor": device.vendor,
-                "model": device.model,
-                "version": device.version,
-                "device_type": device.device_type,
-            }
-        )
-        device.vendor = mapped_values.get("vendor") or ""
-        device.model = mapped_values.get("model") or ""
-        device.version = mapped_values.get("version") or ""
-        device.device_type = mapped_values.get("device_type") or ""
 
     @staticmethod
     def _normalize_value(value: str | None) -> str:

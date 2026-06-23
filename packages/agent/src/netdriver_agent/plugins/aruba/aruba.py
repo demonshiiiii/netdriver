@@ -7,37 +7,39 @@ from netdriver_core.plugin.plugin_info import PluginInfo
 from netdriver_agent.plugins.base import Base
 
 # pylint: disable=abstract-method
-class AristaBase(Base):
-    """ Arista Base Plugin """
+class ArubaBase(Base):
+    """ Aruba Base Plugin """
 
     info = PluginInfo(
-        vendor="arista",
+        vendor="aruba",
         model="base",
         version="base",
-        description="Arista Base Plugin"
+        description="Aruba Base Plugin"
     )
 
+    _CMD_CANCEL_MORE = "no page"
+
     def get_union_pattern(self) -> re.Pattern:
-        return AristaBase.PatternHelper.get_union_pattern()
+        return ArubaBase.PatternHelper.get_union_pattern()
 
     def get_error_patterns(self) -> list[re.Pattern]:
-        return AristaBase.PatternHelper.get_error_patterns()
+        return ArubaBase.PatternHelper.get_error_patterns()
 
     def get_ignore_error_patterns(self) -> list[re.Pattern]:
-        return AristaBase.PatternHelper.get_ignore_error_patterns()
+        return ArubaBase.PatternHelper.get_ignore_error_patterns()
 
     def get_enable_password_prompt_pattern(self) -> re.Pattern:
-        return AristaBase.PatternHelper.get_enable_password_prompt_pattern()
+        return ArubaBase.PatternHelper.get_enable_password_prompt_pattern()
 
     def get_mode_prompt_patterns(self) -> dict[Mode, re.Pattern]:
         return {
-            Mode.LOGIN: AristaBase.PatternHelper.get_login_prompt_pattern(),
-            Mode.ENABLE: AristaBase.PatternHelper.get_enable_prompt_pattern(),
-            Mode.CONFIG: AristaBase.PatternHelper.get_config_prompt_pattern()
+            Mode.LOGIN: ArubaBase.PatternHelper.get_login_prompt_pattern(),
+            Mode.ENABLE: ArubaBase.PatternHelper.get_enable_prompt_pattern(),
+            Mode.CONFIG: ArubaBase.PatternHelper.get_config_prompt_pattern()
         }
 
     def get_more_pattern(self) -> tuple[re.Pattern, str]:
-        return (AristaBase.PatternHelper.get_more_pattern(), self._CMD_MORE)
+        return (ArubaBase.PatternHelper.get_more_pattern(), self._CMD_MORE)
 
     class PatternHelper:
         """ Inner class for patterns """
@@ -47,50 +49,41 @@ class AristaBase(Base):
         _PATTERN_ENABLE = r"^\r{0,1}[^\s#]+#\s*$"
         # hostname(config)# $
         _PATTERN_CONFIG = r"^\r{0,1}\S+\(\S+\)#\s*$"
-        _PATTERN_ENABLE_PASSWORD = r"Password:"
-        #  --More-- 
-        _PATTERN_MORE = r" --More-- "
+        _PATTERN_ENABLE_PASSWORD = r"[Pp]assword:"
+        #  -- MORE -- 
+        _PATTERN_MORE = r" -- MORE --"
 
         @staticmethod
         def get_login_prompt_pattern() -> re.Pattern:
-            return re.compile(AristaBase.PatternHelper._PATTERN_LOGIN, re.MULTILINE)
+            return re.compile(ArubaBase.PatternHelper._PATTERN_LOGIN, re.MULTILINE)
 
         @staticmethod
         def get_enable_prompt_pattern() -> re.Pattern:
-            return re.compile(AristaBase.PatternHelper._PATTERN_ENABLE, re.MULTILINE)
+            return re.compile(ArubaBase.PatternHelper._PATTERN_ENABLE, re.MULTILINE)
 
         @staticmethod
         def get_config_prompt_pattern() -> re.Pattern:
-            return re.compile(AristaBase.PatternHelper._PATTERN_CONFIG, re.MULTILINE)
+            return re.compile(ArubaBase.PatternHelper._PATTERN_CONFIG, re.MULTILINE)
 
         @staticmethod
         def get_union_pattern() -> re.Pattern:
             return re.compile(
                 "(?P<login>{})|(?P<config>{})|(?P<enable>{})".format(
-                    AristaBase.PatternHelper._PATTERN_LOGIN,
-                    AristaBase.PatternHelper._PATTERN_CONFIG,
-                    AristaBase.PatternHelper._PATTERN_ENABLE
+                    ArubaBase.PatternHelper._PATTERN_LOGIN,
+                    ArubaBase.PatternHelper._PATTERN_CONFIG,
+                    ArubaBase.PatternHelper._PATTERN_ENABLE
                 ),
                 re.MULTILINE
             )
 
         @staticmethod
         def get_enable_password_prompt_pattern() -> re.Pattern:
-            return re.compile(AristaBase.PatternHelper._PATTERN_ENABLE_PASSWORD, re.MULTILINE)
+            return re.compile(ArubaBase.PatternHelper._PATTERN_ENABLE_PASSWORD, re.MULTILINE)
 
         @staticmethod
         def get_error_patterns() -> list[re.Pattern]:
             regex_strs = [
-                r"% Invalid input",
-                r"% Ambiguous command",
-                r"% Bad secret",
-                r"% Unrecognized command",
-                r"% Incomplete command",
-                r"% Invalid port range .+",
-                r"! Access VLAN does not exist. Creating vlan .+",
-                r"% Address \S+ is already assigned to interface .+",
-                r"% Removal of physical interfaces is not permitted",
-                r"^% .+"
+                r"Invalid input: .+"
             ]
             return [re.compile(regex_str, re.MULTILINE) for regex_str in regex_strs]
 
@@ -101,4 +94,4 @@ class AristaBase(Base):
 
         @staticmethod
         def get_more_pattern() -> re.Pattern:
-            return re.compile(AristaBase.PatternHelper._PATTERN_MORE, re.MULTILINE)
+            return re.compile(ArubaBase.PatternHelper._PATTERN_MORE, re.MULTILINE)

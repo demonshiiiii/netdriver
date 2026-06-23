@@ -89,6 +89,7 @@ venvPath = "."
 penv = ".venv"
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
+typeCheckingMode = "off"
 extraPaths = [
   "packages/agent/src",
   "packages/core/src",

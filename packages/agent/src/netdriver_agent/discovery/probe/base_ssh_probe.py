@@ -12,11 +12,13 @@ import asyncssh
 import re
 
 from netdriver_agent.client.channel import ReadBuffer
+from netdriver_agent.discovery.parsing.rules import get_ssh_parse_rules
 from netdriver_core.log import logman
-from netdriver_core.plugin.core import PluginCore
+from netdriver_core.plugin.probe import ProbeResult
 from netdriver_core.ssh.algorithms import DEFAULT_ENCRYPTION_ALGS, DEFAULT_KEX_ALGS
 
 from netdriver_agent.discovery.probe.models import DeviceInfo, DeviceProfile, SshCredential, SshProbeResult
+from netdriver_textfsm import TextFSMParser
 
 if TYPE_CHECKING:
     from netdriver_agent.discovery.probe.identifier import DeviceIdentifier
@@ -39,6 +41,10 @@ class SshProbe:
     _GENERIC_PROMPT_PATTERN = re.compile(
         r"\r?\n?[a-zA-Z0-9._\-\(\)/<>\[\]]+[>#\]\$]\s?$"
     )
+    _MORE_PATTERN = re.compile(r"[Mm]ore")
+    _NEXT_MORE_CMD = " "
+    _IGNORE_PASSWORD_CHANGE_PATTERN = re.compile(r".+ password .+ (change it\?|Continue\?|Change now\?)")
+    _IGNORE_PASSWORD_CHANGE_CMD = "N"
 
     _SSH_CONFIG = {
         "known_hosts": None,
@@ -166,69 +172,6 @@ class SshProbe:
             failure_reason=failure_reason,
         )
 
-    async def execute_commands(
-        self,
-        host: str,
-        port: int,
-        credential: SshCredential,
-        commands: list[str],
-        connect_timeout: float = 10.0,
-        read_timeout: float = 5.0,
-    ) -> list[str]:
-        """Execute commands over SSH and return outputs in input order."""
-        if not commands:
-            return []
-
-        conn = await asyncio.wait_for(
-            asyncssh.connect(
-                host,
-                port=port,
-                username=credential.username,
-                password=credential.password,
-                **self._SSH_CONFIG,
-            ),
-            timeout=connect_timeout,
-        )
-
-        try:
-            process = await asyncio.wait_for(
-                conn.create_process(
-                    term_type="ansi",
-                    term_size=(1000, 100),
-                ),
-                timeout=self._PROCESS_OPEN_TIMEOUT,
-            )
-
-            try:
-                await asyncio.wait_for(self._read_prompt(process), timeout=read_timeout)
-            except asyncio.TimeoutError:
-                log.debug(
-                    f"SSH probe {host}:{port}: prompt read timeout before discovery rules"
-                )
-
-            outputs: list[str] = []
-            for command in commands:
-                process.stdin.write(command + "\n")
-                try:
-                    output = await asyncio.wait_for(
-                        self._read_until_prompt(
-                            process,
-                            command,
-                            self._GENERIC_PROMPT_PATTERN,
-                        ),
-                        timeout=read_timeout,
-                    )
-                except asyncio.TimeoutError:
-                    log.debug(
-                        f"SSH probe {host}:{port}: discovery command timeout for {command!r}"
-                    )
-                    output = ""
-                outputs.append(output)
-
-            return outputs
-        finally:
-            await self._close_connection(conn, host, port)
-
     async def _identify_device(
         self,
         conn: asyncssh.SSHClientConnection,
@@ -250,25 +193,12 @@ class SshProbe:
             timeout=self._PROCESS_OPEN_TIMEOUT,
         )
 
-        known_plugin_cls: type | None = None
-        if selection_profile.vendor:
-            known_plugin_cls = identifier.get_probe_plugin(
-                selection_profile.vendor,
-                selection_profile.model,
-                selection_profile.version,
-            )
-
         # Step 1: Read prompt
         prompt = ""
         welcome_output = ""
-        prompt_pattern = (
-            self._get_probe_prompt_pattern(known_plugin_cls)
-            if known_plugin_cls
-            else self._GENERIC_PROMPT_PATTERN
-        )
         try:
             prompt, welcome_output = await asyncio.wait_for(
-                self._read_prompt(process, prompt_pattern),
+                self._read_prompt(process, self._GENERIC_PROMPT_PATTERN),
                 timeout=read_timeout,
             )
         except asyncio.TimeoutError:
@@ -277,33 +207,26 @@ class SshProbe:
         # Step 2: Determine candidate plugins
         candidates: list[type] = []
         if selection_profile.vendor:
+            known_plugin_cls = identifier.get_probe_plugin(
+                selection_profile.vendor,
+                selection_profile.model,
+                selection_profile.version,
+            )
             if known_plugin_cls:
                 candidates.append(known_plugin_cls)
         else:
             matching_vendors = identifier.identify_by_prompt(prompt)
-            if len(matching_vendors) > self._MAX_AMBIGUOUS_PROMPT_CANDIDATES:
-                log.debug(
-                    f"SSH probe {host}:{port}: prompt matched {len(matching_vendors)} vendors, "
-                    "skipping vendor probe commands to avoid ambiguous command execution"
-                )
-                return SshProbeResult(
-                    success=True,
-                    host=host,
-                    port=port,
-                    credential=credential,
-                    device_info=None,
-                    raw_output=welcome_output,
-                )
             for vendor in matching_vendors:
                 plugin_cls = identifier.get_probe_plugin(vendor)
                 if plugin_cls:
                     candidates.append(plugin_cls)
-            if not candidates:
-                candidates.append(PluginCore)
 
         # Step 3: Try each candidate plugin
         for plugin_cls in candidates:
-            probe_cmd = plugin_cls.get_probe_command()
+            rule = get_ssh_parse_rules(plugin_cls.info.vendor)
+            if not rule:
+                continue 
+            probe_cmd = rule.command
             probe_output = ""
             union_pattern = self._get_probe_prompt_pattern(plugin_cls)
             try:
@@ -329,7 +252,7 @@ class SshProbe:
                     f"of probe output with {plugin_cls.__name__}"
                 )
                 probe_result = await asyncio.wait_for(
-                    asyncio.to_thread(plugin_cls.parse_probe_output, probe_output),
+                    asyncio.to_thread(self.parse_probe_output, plugin_cls.info.vendor, rule.template, probe_output),
                     timeout=self._PROBE_PARSE_TIMEOUT,
                 )
                 log.debug(
@@ -349,7 +272,7 @@ class SshProbe:
                     f"{plugin_cls.__name__}: {exc}"
                 )
                 continue
-            if probe_result.vendor:
+            if probe_result.vendor and probe_result.model and probe_result.version:
                 device_info = DeviceInfo(
                     vendor=probe_result.vendor,
                     model=probe_result.model,
@@ -431,6 +354,18 @@ class SshProbe:
             return cls._GENERIC_PROMPT_PATTERN
         return get_union_pattern()
 
+    @staticmethod
+    def parse_probe_output(vendor: str, template: str, output: str) -> ProbeResult:
+        rows = TextFSMParser(template).parse(output)
+        row = rows[0] if rows else {}
+        return ProbeResult(
+            vendor=vendor,
+            model=row.get("MODEL", ""),
+            version=row.get("VERSION", ""),
+            hostname=row.get("HOSTNAME", ""),
+            serial_number=row.get("SERIAL", ""),
+        )
+
     async def _read_until_prompt(self, process: asyncssh.SSHClientProcess, cmd: str, union_pattern: re.Pattern) -> str:
         """Read from process stdout until no more data arrives."""
         output = ReadBuffer(cmd)
@@ -451,6 +386,8 @@ class SshProbe:
             output.append(chunk)
             if output.check_pattern(union_pattern):
                 break
+            if output.check_pattern(self._MORE_PATTERN):
+                process.stdin.write(self._NEXT_MORE_CMD)
         return output.get_data()
     
     async def _read_prompt(
@@ -460,7 +397,6 @@ class SshProbe:
     ) -> tuple[str, str]:
         """Read from process stdout until EOF."""
         output = ReadBuffer()
-        effective_prompt_pattern = prompt_pattern or self._GENERIC_PROMPT_PATTERN
         try:
             while process.stdout and not process.stdout.at_eof():
                 try:
@@ -476,8 +412,10 @@ class SshProbe:
                 if not chunk:
                     break
                 output.append(chunk)
-                if output.check_pattern(effective_prompt_pattern):
+                if output.check_pattern(prompt_pattern):
                     break
+                if output.check_pattern(self._IGNORE_PASSWORD_CHANGE_PATTERN):
+                    process.stdin.write(self._IGNORE_PASSWORD_CHANGE_CMD + "\n")
         except Exception as exc:
             log.debug(f"SSH probe: error while reading until EOF: {exc}")
         log.debug(

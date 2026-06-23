@@ -77,8 +77,6 @@ discovery:
   snmp_parse_rules_file: config/agent/snmp_parse_rules.yml
   # SSH discovery parse rules
   ssh_parse_rules_file: config/agent/ssh_parse_rules.yml
-  # Discovery ingest mapping rules
-  ingest_rules_file: config/agent/discovery_ingest_rules.yml
   # Discovery parse rule result strategy: overwrite or merge
   parse_rule_result_mode: overwrite
   # SQLite database path for task persistence

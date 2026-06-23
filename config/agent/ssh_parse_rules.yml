@@ -1,13 +1,100 @@
 # Vendor keyed SSH parse rules.
-#
-# Example:
-# huawei:
-#   rules:
-#     - command: "display version"
-#       template: |
-#         Value MODEL (.+)
-#         Value VERSION (.+)
-#
-#         Start
-#           ^Model:\\s+${MODEL} -> Continue
-#           ^Version:\\s+${VERSION} -> Record
+arista:
+  command: "show version"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (\S+)
+    Value VERSION (\S+)
+    Value SERIAL (\S+)
+
+    Start
+      ^Arista\s+${MODEL}
+      ^[Ss]oftware image version:\s*${VERSION}
+      ^[Ss]erial number:\s*${SERIAL}
+      ^${HOSTNAME}(>|#) -> Record
+aruba:
+  command: "show system"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (\S+)
+    Value VERSION (\S+)
+    Value SERIAL (\S+)
+
+    Start
+      ^[Hh]ostname\s*:\s*${HOSTNAME}
+      ^[Pp]roduct [Nn]ame\s*:\s*\S*\s*${MODEL}
+      ^\S*\s*[Ss]erial [Nn]br\s*:\s*${SERIAL}
+      ^\S*\s*[Vv]ersion\s*:\s*${VERSION} -> Record
+check point:
+  command: "show version all"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (\S+)
+    Value VERSION (\S+)
+
+    Start
+      ^[Pp]roduct [Vv]ersion Check Point ${MODEL} ${VERSION}
+      ^${HOSTNAME}> -> Record
+cisco:
+  command: "show version"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (\S+)
+    Value VERSION (\S+)
+    Value SERIAL (\S+)
+
+    Start
+      ^.*Software Version ${VERSION}
+      ^[Hh]ardware:\s*${MODEL},
+      ^[Ss]erial [Nn]umber: ${SERIAL}
+      ^\s*[Cc]isco ${MODEL}
+      ^\s*NXOS: version ${VERSION}
+      ^\s*Processor Board ID ${SERIAL}
+      ^${HOSTNAME}(>|#) -> Record
+fortinet:
+  command: "get system status"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (\S+)
+    Value VERSION ([Vv\d\.]+)
+    Value SERIAL (\S+)
+
+    Start
+      ^[Vv]ersion: ${MODEL} ${VERSION},
+      ^[Ss]erial-[Nn]umber: ${SERIAL}
+      ^[Hh]ostname: ${HOSTNAME} -> Record
+hillstone:
+  command: "show version"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (\S+)
+    Value VERSION (\S+)
+    Value SERIAL (\S+)
+
+    Start
+      ^.+[Ss]oftware, [Vv]ersion ${VERSION}
+      ^[Pp]roduct name: ${MODEL} S/N: ${SERIAL}
+      ^${HOSTNAME}# -> Record
+huawei:
+  command: "display version"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (\S+)
+    Value VERSION (\S+)
+                            
+    Start
+      ^.+[Ss]oftware, [Vv]ersion \S+ \(${MODEL} ${VERSION}\)
+      ^<${HOSTNAME}> -> Record
+paloalto:
+  command: "show system info"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (\S+)
+    Value VERSION (\S+)
+    Value SERIAL (\S+)
+
+    Start
+      ^hostname: ${HOSTNAME}
+      ^model: ${MODEL}
+      ^serial: ${SERIAL}
+      ^sw-version: ${VERSION} -> Record
