@@ -15,7 +15,7 @@ _VENDOR_MODELS = {
     "juniper": ["ex.*", "qfx.*", "mx.*", "srx.*"],
     "paloalto": ["pa.*"],
     "fortinet": ["fortigate.*"],
-    "arista": ["eos.*"],
+    "arista": [".*eos.*"],
     "check point": ["security gateway", "gaia"],
     "dptech": ["fw.*"],
     "maipu": ["nss.*"],

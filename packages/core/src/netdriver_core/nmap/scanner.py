@@ -203,7 +203,7 @@ class NmapScanner:
         scan_types = self._build_scan_types(ssh_ports, snmp_ports)
         arguments = (
             f"{scan_types} -sV --version-intensity 0 -T4 "
-            f"-Pn {port_spec} --max-retries 2 --host-timeout 30s"
+            f"-p {port_spec} --max-retries 2 --host-timeout 30s"
         )
         nm.scan(hosts=target, arguments=arguments)
         return {host: nm[host] for host in nm.all_hosts()}

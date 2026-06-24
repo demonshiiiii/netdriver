@@ -359,7 +359,7 @@ class SshProbe:
         rows = TextFSMParser(template).parse(output)
         row = rows[0] if rows else {}
         return ProbeResult(
-            vendor=vendor,
+            vendor=vendor.title(),
             model=row.get("MODEL", ""),
             version=row.get("VERSION", ""),
             hostname=row.get("HOSTNAME", ""),

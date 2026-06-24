@@ -185,7 +185,7 @@ def _iter_candidate_paths(*, env_var: str, default_name: str) -> list[Path]:
 
 
 def _normalize_vendor_key(vendor_key: str | None) -> str:
-    return vendor_key.strip().lower() if vendor_key else ""
+    return vendor_key.strip().title() if vendor_key else ""
 
 
 def _normalize_textfsm_value(value: object) -> str:

@@ -1,63 +1,80 @@
 vendors:
-  hp:
+  HP:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.11
-  fortinet:
+  Fortinet:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.12356
-  topsec:
+  Topsec:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.14331
-  venustech:
+  Venustech:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.15227
-  huawei:
+  Huawei:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.2011
-  allied_telesis:
+    model_oids:
+      - 1.3.6.1.4.1.2011.5.25.188.1.4.0
+      - 1.3.6.1.2.1.47.1.1.1.1.2.201326593
+    version_oids:
+      - 1.3.6.1.4.1.2011.5.25.188.1.5.0
+  Allied_telesis:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.207
-  paloalto:
+  Paloalto:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.25461
-  h3c:
+    model_oids:
+      - 1.3.6.1.4.1.25461.2.1.2.2.1.0
+    version_oids:
+      - 1.3.6.1.4.1.25461.2.1.2.1.1.0
+    serial_number_oids:
+      - 1.3.6.1.4.1.25461.2.1.2.1.3
+  H3C:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.25506
-  check_point:
+  Check Point:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.2620
-  juniper:
+  Juniper:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.2636
-  hillstone:
+  Hillstone:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.28557
-  arista:
+  Arista:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.30065
-  dptech:
+  Dptech:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.31648
-  qianxin:
+  Qianxin:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.47646
       - 1.3.6.1.4.1.62722
-  chaitin:
+  Chaitin:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.50737
-  maipu:
+  Maipu:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.5651
-  nokia:
+  Nokia:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.6527
       - 1.3.6.1.4.1.94
-  cisco:
+  Cisco:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.9
-  aruba:
+    model_oids:
+      - 1.3.6.1.2.1.47.1.1.1.1.13.10
+      - 1.3.6.1.2.1.47.1.1.1.1.13.1
+    version_oids:
+      - 1.3.6.1.2.1.47.1.1.1.1.10.22
+      - 1.3.6.1.2.1.47.1.1.1.1.10.1
+    serial_number_oids:
+      - 1.3.6.1.2.1.47.1.1.1.1.11.10
+      - 1.3.6.1.2.1.47.1.1.1.1.11.1
+  Aruba:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.47196
-  checkpoint:
-    sysobjectid_prefixes:
-      - 1.3.6.1.4.1.2620

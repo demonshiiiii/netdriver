@@ -1,5 +1,5 @@
 # Vendor keyed SSH parse rules.
-arista:
+Arista:
   command: "show version"
   template: |
     Value HOSTNAME (\S+)
@@ -12,7 +12,7 @@ arista:
       ^[Ss]oftware image version:\s*${VERSION}
       ^[Ss]erial number:\s*${SERIAL}
       ^${HOSTNAME}(>|#) -> Record
-aruba:
+Aruba:
   command: "show system"
   template: |
     Value HOSTNAME (\S+)
@@ -25,7 +25,7 @@ aruba:
       ^[Pp]roduct [Nn]ame\s*:\s*\S*\s*${MODEL}
       ^\S*\s*[Ss]erial [Nn]br\s*:\s*${SERIAL}
       ^\S*\s*[Vv]ersion\s*:\s*${VERSION} -> Record
-check point:
+Check Point:
   command: "show version all"
   template: |
     Value HOSTNAME (\S+)
@@ -35,7 +35,7 @@ check point:
     Start
       ^[Pp]roduct [Vv]ersion Check Point ${MODEL} ${VERSION}
       ^${HOSTNAME}> -> Record
-cisco:
+Cisco:
   command: "show version"
   template: |
     Value HOSTNAME (\S+)
@@ -51,7 +51,7 @@ cisco:
       ^\s*NXOS: version ${VERSION}
       ^\s*Processor Board ID ${SERIAL}
       ^${HOSTNAME}(>|#) -> Record
-fortinet:
+Fortinet:
   command: "get system status"
   template: |
     Value HOSTNAME (\S+)
@@ -63,7 +63,7 @@ fortinet:
       ^[Vv]ersion: ${MODEL} ${VERSION},
       ^[Ss]erial-[Nn]umber: ${SERIAL}
       ^[Hh]ostname: ${HOSTNAME} -> Record
-hillstone:
+Hillstone:
   command: "show version"
   template: |
     Value HOSTNAME (\S+)
@@ -75,7 +75,7 @@ hillstone:
       ^.+[Ss]oftware, [Vv]ersion ${VERSION}
       ^[Pp]roduct name: ${MODEL} S/N: ${SERIAL}
       ^${HOSTNAME}# -> Record
-huawei:
+Huawei:
   command: "display version"
   template: |
     Value HOSTNAME (\S+)
@@ -85,7 +85,7 @@ huawei:
     Start
       ^.+[Ss]oftware, [Vv]ersion \S+ \(${MODEL} ${VERSION}\)
       ^<${HOSTNAME}> -> Record
-paloalto:
+Paloalto:
   command: "show system info"
   template: |
     Value HOSTNAME (\S+)
