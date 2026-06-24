@@ -3,11 +3,13 @@
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 from collections.abc import Callable
 from typing import Any, cast
 
 import pytest
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from netdriver_agent.discovery.engine.discovery_engine import DiscoveryEngine
 from netdriver_agent.discovery.engine.models import (
@@ -27,8 +29,26 @@ from netdriver_agent.models.discovery import (
     SnmpCredentialModel,
     SshCredentialModel,
 )
+from netdriver_agent.security.secret_decryption import (
+    SecretDecryptionConfig,
+    SecretDecryptor,
+)
 from netdriver_core.snmp.client import SnmpClient
 from netdriver_core.snmp.models import SnmpResult
+
+
+_KEY_HEX = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+_KEY = bytes.fromhex(_KEY_HEX)
+_NONCE = b"123456789012"
+
+
+def _encrypt_aes_gcm_secret(plaintext: str) -> str:
+    ciphertext = AESGCM(_KEY).encrypt(_NONCE, plaintext.encode(), None)
+    return base64.b64encode(_NONCE + ciphertext).decode()
+
+
+def _enabled_decryptor() -> SecretDecryptor:
+    return SecretDecryptor(SecretDecryptionConfig(enabled=True, encryption_key=_KEY_HEX))
 
 
 @dataclass
@@ -175,6 +195,51 @@ async def test_start_discovery_passes_snmp_context_name_to_engine() -> None:
     assert credential.name == "tenant-snmp"
     assert credential.version == "v3"
     assert credential.context_name == "tenant-a"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_start_discovery_decrypts_secret_fields() -> None:
+    engine = _FakeEngine()
+    task_store = _FakeTaskStore()
+    handler = DiscoveryRequestHandler(
+        engine=cast(DiscoveryEngine, engine),
+        task_store=cast(TaskStore, task_store),
+        secret_decryptor=_enabled_decryptor(),
+    )
+
+    await handler.start_discovery(
+        DiscoveryRequest(
+            targets=["10.0.0.0/24"],
+            ports=DiscoveryPortsModel(ssh=[22], snmp=[161]),
+            ssh_credentials=[
+                SshCredentialModel(
+                    name="ops-ssh",
+                    username="admin",
+                    password=_encrypt_aes_gcm_secret("ssh-password"),
+                    enable_password=_encrypt_aes_gcm_secret("enable-password"),
+                )
+            ],
+            snmp_credentials=[
+                SnmpCredentialModel(
+                    name="dc-snmp",
+                    version="v3",
+                    username="snmp-user",
+                    community=_encrypt_aes_gcm_secret("snmp-community"),
+                    auth_password=_encrypt_aes_gcm_secret("auth-password"),
+                    priv_password=_encrypt_aes_gcm_secret("priv-password"),
+                )
+            ],
+        )
+    )
+
+    ssh_credential = engine.captured["ssh_credentials"][0]
+    snmp_credential = engine.captured["snmp_credentials"][0]
+    assert ssh_credential.password == "ssh-password"
+    assert ssh_credential.enable_password == "enable-password"
+    assert snmp_credential.community == "snmp-community"
+    assert snmp_credential.auth_password == "auth-password"
+    assert snmp_credential.priv_password == "priv-password"
 
 
 @pytest.mark.unit
@@ -337,3 +402,39 @@ async def test_collect_snmp_returns_failure_message() -> None:
     assert response.success is False
     assert response.value is None
     assert response.msg == "Invalid SNMP OID: invalid-oid"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_collect_snmp_decrypts_secret_fields() -> None:
+    engine = _FakeEngine()
+    task_store = _FakeTaskStore()
+    fake_client = _FakeSnmpClient(timeout=0.0, retries=0)
+
+    handler = DiscoveryRequestHandler(
+        engine=cast(DiscoveryEngine, engine),
+        task_store=cast(TaskStore, task_store),
+        snmp_client_factory=cast(
+            Callable[..., SnmpClient],
+            lambda timeout, retries: fake_client,
+        ),
+        secret_decryptor=_enabled_decryptor(),
+    )
+
+    await handler.collect_snmp(
+        SnmpCollectRequest(
+            ip="10.0.0.8",
+            oid="1.3.6.1.2.1.1.1.0",
+            timeout_secs=5,
+            version="v3",
+            username="snmp-user",
+            community=_encrypt_aes_gcm_secret("snmp-community"),
+            auth_password=_encrypt_aes_gcm_secret("auth-password"),
+            priv_password=_encrypt_aes_gcm_secret("priv-password"),
+        )
+    )
+
+    credential = fake_client.captured["credential"]
+    assert credential.community == "snmp-community"
+    assert credential.auth_password == "auth-password"
+    assert credential.priv_password == "priv-password"

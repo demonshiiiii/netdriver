@@ -11,6 +11,11 @@ logging:
   intercept_loggers:
     - uvicorn.access
     - uvicorn.error
+secrets:
+  # Decrypt incoming password-like request fields before using them.
+  decrypt_enabled: false
+  # 64-character hex string for AES-256-GCM.
+  encryption_key: ""
 session:
   # Session pool check interval, pool status will be output in the log
   check_interval: 30

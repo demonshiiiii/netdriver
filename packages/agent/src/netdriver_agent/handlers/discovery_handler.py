@@ -29,6 +29,7 @@ from netdriver_agent.models.discovery import (
     DiscoveryStatusResponse,
     DiscoveryTaskSummary,
 )
+from netdriver_agent.security.secret_decryption import SecretDecryptor
 
 log = logman.logger
 
@@ -43,12 +44,14 @@ class DiscoveryRequestHandler:
         max_tasks: int = 5,
         snmp_retries: int = 1,
         snmp_client_factory: Callable[..., SnmpClient] = SnmpClient,
+        secret_decryptor: SecretDecryptor | None = None,
     ):
         self._engine = engine
         self._task_store = task_store
         self._max_tasks = max_tasks
         self._snmp_retries = snmp_retries
         self._snmp_client_factory = snmp_client_factory
+        self._secret_decryptor = secret_decryptor or SecretDecryptor()
 
     async def start_discovery(self, request: DiscoveryRequest) -> DiscoveryResponse:
         """Start a new discovery task.
@@ -70,29 +73,46 @@ class DiscoveryRequestHandler:
             )
 
         # Convert API models to internal models
-        ssh_creds = [
-            SshCredential(
-                name=c.name,
-                username=c.username,
-                password=c.password,
-                enable_password=c.enable_password,
+        ssh_creds = []
+        for index, credential in enumerate(request.ssh_credentials):
+            ssh_creds.append(
+                SshCredential(
+                    name=credential.name,
+                    username=credential.username,
+                    password=self._secret_decryptor.decrypt_required(
+                        credential.password,
+                        field_name=f"ssh_credentials[{index}].password",
+                    ),
+                    enable_password=self._secret_decryptor.decrypt(
+                        credential.enable_password,
+                        field_name=f"ssh_credentials[{index}].enable_password",
+                    ) or "",
+                )
             )
-            for c in request.ssh_credentials
-        ]
-        snmp_creds = [
-            SnmpCredential(
-                name=c.name,
-                community=c.community,
-                version=c.version,
-                username=c.username,
-                auth_protocol=c.auth_protocol,
-                auth_password=c.auth_password,
-                priv_protocol=c.priv_protocol,
-                priv_password=c.priv_password,
-                context_name=c.context_name,
+        snmp_creds = []
+        for index, credential in enumerate(request.snmp_credentials):
+            snmp_creds.append(
+                SnmpCredential(
+                    name=credential.name,
+                    community=self._secret_decryptor.decrypt(
+                        credential.community,
+                        field_name=f"snmp_credentials[{index}].community",
+                    ),
+                    version=credential.version,
+                    username=credential.username,
+                    auth_protocol=credential.auth_protocol,
+                    auth_password=self._secret_decryptor.decrypt(
+                        credential.auth_password,
+                        field_name=f"snmp_credentials[{index}].auth_password",
+                    ),
+                    priv_protocol=credential.priv_protocol,
+                    priv_password=self._secret_decryptor.decrypt(
+                        credential.priv_password,
+                        field_name=f"snmp_credentials[{index}].priv_password",
+                    ),
+                    context_name=credential.context_name,
+                )
             )
-            for c in request.snmp_credentials
-        ]
 
         task_id = await self._engine.start_discovery(
             targets=request.targets,
@@ -210,13 +230,22 @@ class DiscoveryRequestHandler:
             retries=self._snmp_retries,
         )
         credential = SnmpCredential(
-            community=request.community,
+            community=self._secret_decryptor.decrypt(
+                request.community,
+                field_name="community",
+            ),
             version=request.version,
             username=request.username,
             auth_protocol=request.auth_protocol,
-            auth_password=request.auth_password,
+            auth_password=self._secret_decryptor.decrypt(
+                request.auth_password,
+                field_name="auth_password",
+            ),
             priv_protocol=request.priv_protocol,
-            priv_password=request.priv_password,
+            priv_password=self._secret_decryptor.decrypt(
+                request.priv_password,
+                field_name="priv_password",
+            ),
             context_name=request.context_name,
         )
         try:

@@ -9,6 +9,7 @@ from netdriver_agent.handlers.conn_req_handler import ConnectRequestHandler
 from netdriver_agent.handlers.discovery_handler import DiscoveryRequestHandler
 from netdriver_agent.discovery.engine.discovery_engine import DiscoveryEngine
 from netdriver_agent.discovery.engine.task_store import TaskStore
+from netdriver_agent.security.secret_decryption import create_secret_decryptor
 
 
 class Container(DeclarativeContainer):
@@ -16,6 +17,11 @@ class Container(DeclarativeContainer):
     config = Configuration()
     cmd_req_handler = Factory(CommandRequestHandler)
     conn_req_handler = Factory(ConnectRequestHandler)
+    secret_decryptor = Factory(
+        create_secret_decryptor,
+        enabled=config.secrets.decrypt_enabled,
+        encryption_key=config.secrets.encryption_key,
+    )
     task_store = Singleton(
         TaskStore,
         db_path=config.discovery.db_path,
@@ -40,6 +46,7 @@ class Container(DeclarativeContainer):
         task_store=task_store,
         max_tasks=config.discovery.task.max_tasks,
         snmp_retries=config.discovery.snmp.retries,
+        secret_decryptor=secret_decryptor,
     )
 
 
