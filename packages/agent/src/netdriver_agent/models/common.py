@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, IPvAnyAddress, field_validator, model_val
 
 _VENDOR_MODELS = {
     "array": ["ag", "apv"],
-    "cisco": ["nexus", "isr.*", "asr.*", "catalyst", "asa"],
+    "cisco": ["n.*", "isr.*", "asr.*", "catalyst", "asa"],
     "huawei": ["usg.*", "ce.*"],
     "h3c": ["secpath", "vsr.*", "s5130s.*"],
     "hillstone": ["sg.*"],
@@ -16,14 +16,15 @@ _VENDOR_MODELS = {
     "paloalto": ["pa.*"],
     "fortinet": ["fortigate.*"],
     "arista": ["eos.*"],
-    "check point": ["security gateway"],
+    "check point": ["security gateway", "gaia"],
     "dptech": ["fw.*"],
     "maipu": ["nss.*"],
     "qianxin": ["nsg.*"],
     "venustech": ["usg.*"],
     "chaitin": ["ctdsg.*"],
     "topsec": ["ngfw.*"],
-    "leadsec": ["power.*"]
+    "leadsec": ["power.*"],
+    "aruba": [".*cx.*"],
 }
 _VENDOR_PATTERNS = "|".join(_VENDOR_MODELS.keys())
 _models = set()
@@ -84,6 +85,13 @@ class CommonRequest(BaseModel):
 
     def session_key(self) -> str:
         return f"{self.protocol}//{self.username}@{self.ip}:{self.port}"
+
+    @field_validator('vendor', 'model', mode='before')
+    @classmethod
+    def normalize_vendor_and_model(cls, v):
+        if isinstance(v, str):
+            return v.lower()
+        return v
 
     @model_validator(mode="after")
     def check_vendor_model(self) -> Self:

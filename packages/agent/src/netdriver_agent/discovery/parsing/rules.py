@@ -59,12 +59,6 @@ class _SnmpRuleSet(BaseModel):
     rules: list[SnmpParseRule] = Field(default_factory=list)
 
 
-class _SshRuleSet(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    rules: list[SshParseRule] = Field(default_factory=list)
-
-
 def reset_parse_rule_cache() -> None:
     """Reset cached parse-rule configuration."""
     _load_snmp_rule_sets.cache_clear()
@@ -103,38 +97,15 @@ def get_snmp_parse_rules(vendor_key: str) -> list[SnmpParseRule]:
     return _load_snmp_rule_sets().get(_normalize_vendor_key(vendor_key), [])
 
 
-def get_ssh_parse_rules(vendor_key: str) -> list[SshParseRule]:
+def get_ssh_parse_rules(vendor_key: str) -> SshParseRule:
     """Return SSH parse rules for a vendor key."""
-    return _load_ssh_rule_sets().get(_normalize_vendor_key(vendor_key), [])
+    return _load_ssh_rule_sets().get(_normalize_vendor_key(vendor_key), None)
 
 
 @lru_cache(maxsize=1)
 def _load_snmp_rule_sets() -> dict[str, list[SnmpParseRule]]:
     """Load SNMP parse rules from YAML."""
-    return _load_rule_sets(
-        env_var=_SNMP_PARSE_RULES_ENV_VAR,
-        default_name="snmp_parse_rules.yml",
-        ruleset_model=_SnmpRuleSet,
-    )
-
-
-@lru_cache(maxsize=1)
-def _load_ssh_rule_sets() -> dict[str, list[SshParseRule]]:
-    """Load SSH parse rules from YAML."""
-    return _load_rule_sets(
-        env_var=_SSH_PARSE_RULES_ENV_VAR,
-        default_name="ssh_parse_rules.yml",
-        ruleset_model=_SshRuleSet,
-    )
-
-
-def _load_rule_sets(
-    *,
-    env_var: str,
-    default_name: str,
-    ruleset_model: type[_SnmpRuleSet | _SshRuleSet],
-) -> dict[str, list[SnmpParseRule] | list[SshParseRule]]:
-    config_text, config_source = _load_config_text(env_var=env_var, default_name=default_name)
+    config_text, config_source = _load_config_text(env_var=_SNMP_PARSE_RULES_ENV_VAR, default_name="snmp_parse_rules.yml")
     if not config_text:
         return {}
 
@@ -144,14 +115,41 @@ def _load_rule_sets(
     if not isinstance(raw_config, dict):
         raise ValueError(f"invalid discovery parse rule format from {config_source}")
 
-    normalized_rules: dict[str, list[SnmpParseRule] | list[SshParseRule]] = {}
+    normalized_rules: dict[str, list[SnmpParseRule]] = {}
     for vendor_key, raw_ruleset in raw_config.items():
         normalized_vendor_key = _normalize_vendor_key(str(vendor_key))
         if not normalized_vendor_key:
             raise ValueError(f"vendor key must not be empty in {config_source}")
-
-        ruleset = ruleset_model.model_validate(raw_ruleset)
+        ruleset = _SnmpRuleSet.model_validate(raw_ruleset)
         normalized_rules[normalized_vendor_key] = ruleset.rules
+
+    log.debug(
+        f"Loaded discovery parse rules from {config_source} "
+        f"with {len(normalized_rules)} vendor entries"
+    )
+    return normalized_rules
+
+
+@lru_cache(maxsize=1)
+def _load_ssh_rule_sets() -> dict[str, SshParseRule]:
+    """Load SSH parse rules from YAML."""
+    config_text, config_source = _load_config_text(env_var=_SSH_PARSE_RULES_ENV_VAR, default_name="ssh_parse_rules.yml")
+    if not config_text:
+        return {}
+
+    raw_config = yaml.safe_load(config_text)
+    if raw_config is None:
+        raw_config = {}
+    if not isinstance(raw_config, dict):
+        raise ValueError(f"invalid discovery parse rule format from {config_source}")
+
+    normalized_rules: dict[str, SshParseRule] = {}
+    for vendor_key, raw_ruleset in raw_config.items():
+        normalized_vendor_key = _normalize_vendor_key(str(vendor_key))
+        if not normalized_vendor_key:
+            raise ValueError(f"vendor key must not be empty in {config_source}")
+        ruleset = SshParseRule.model_validate(raw_ruleset)
+        normalized_rules[normalized_vendor_key] = ruleset
 
     log.debug(
         f"Loaded discovery parse rules from {config_source} "

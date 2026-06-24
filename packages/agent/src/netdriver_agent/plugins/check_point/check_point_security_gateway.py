@@ -10,7 +10,7 @@ class CheckPointSecurityGateway(CheckPointBase):
 
     info = PluginInfo(
         vendor="check point",
-        model="security gateway",
+        model="(security gateway|gaia)",
         version="base",
         description="CheckPoint SecurityGateway Plugin"
     )
