@@ -78,6 +78,8 @@ discovery:
   nmap_path: nmap
   # Vendor OID mapping file
   vendor_map_file: config/agent/vendor_oid_map.yml
+  # Device type mapping file
+  device_type_map_file: config/agent/device_type_map.yml
   # SNMP discovery parse rules
   snmp_parse_rules_file: config/agent/snmp_parse_rules.yml
   # SSH discovery parse rules

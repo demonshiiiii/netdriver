@@ -1,0 +1,22 @@
+Arista:
+  eos: switch
+Aruba:
+  cx: switch
+Check Point:
+  gaia: firewall
+Cisco:
+  n: switch
+  asa: firewall
+  isr: router
+Fortinet:
+  fortigate: firewall
+Hillstone:
+  sg: firewall
+Huawei:
+  s: switch
+  ce: switch
+  usg: firewall
+Paloalto:
+  pa: firewall
+Juniper:
+  srx: firewall

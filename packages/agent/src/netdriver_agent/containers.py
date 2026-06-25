@@ -62,6 +62,12 @@ def configure_discovery_vendor_map() -> None:
         os.environ["NETDRIVER_DISCOVERY_VENDOR_MAP"] = vendor_map_file
     else:
         os.environ.pop("NETDRIVER_DISCOVERY_VENDOR_MAP", None)
+    
+    device_type_map_file = container.config.discovery.device_type_map_file()
+    if device_type_map_file:
+        os.environ["NETDRIVER_DISCOVERY_DEVICE_TYPE_MAP"] = device_type_map_file
+    else:
+        os.environ.pop("NETDRIVER_DISCOVERY_DEVICE_TYPE_MAP", None)
 
     snmp_parse_rules_file = container.config.discovery.snmp_parse_rules_file()
     if snmp_parse_rules_file:

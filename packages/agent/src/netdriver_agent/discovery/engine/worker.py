@@ -14,6 +14,7 @@ from contextlib import suppress
 from dataclasses import asdict, dataclass
 from typing import TypeVar
 
+from netdriver_agent.discovery.device_type import get_device_type
 from netdriver_core.log import logman
 from netdriver_core.nmap.models import ScanResult
 from netdriver_core.nmap.scanner import NmapScanner
@@ -544,6 +545,7 @@ class DiscoveryTaskWorker:
             )
 
         if device.vendor or device.method:
+            self.fill_device_type(device)
             await self._task_store.add_device(task_id, device)
             protocol = self._resolve_result_protocol(
                 device,
@@ -706,6 +708,10 @@ class DiscoveryTaskWorker:
             return DiscoveryTaskWorker._normalize_protocol_values(device.protocol)
         method = device.method.strip().upper()
         return [method] if method in {"SNMP", "SSH"} else []
+
+    @staticmethod
+    def fill_device_type(device: DiscoveredDevice) -> None:
+        device.device_type = get_device_type(device.vendor, device.model)
 
     @staticmethod
     def _normalize_protocol_values(protocol: list[str]) -> list[str]:
