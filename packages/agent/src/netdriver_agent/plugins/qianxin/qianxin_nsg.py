@@ -10,7 +10,7 @@ class QiAnXinNSG(QiAnXinBase):
 
     info = PluginInfo(
         vendor="qianxin",
-        model="nsg.*",
+        model="nsg",
         version="base",
         description="QiAnXin NSG Plugin"
     )

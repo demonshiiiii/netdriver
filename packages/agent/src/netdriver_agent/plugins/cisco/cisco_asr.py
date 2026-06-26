@@ -11,7 +11,7 @@ class CiscoASR(CiscoBase):
 
     info = PluginInfo(
             vendor="cisco",
-            model="asr.*",
+            model="asr",
             version="base",
             description="Cisco ASR Plugin"
         )

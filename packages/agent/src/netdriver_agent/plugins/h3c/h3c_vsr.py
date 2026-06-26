@@ -10,7 +10,7 @@ class H3CVSR(H3CBase):
 
     info = PluginInfo(
         vendor="h3c",
-        model="vsr.*",
+        model="vsr",
         version="base",
         description="H3C VSR Plugin"
     )

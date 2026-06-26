@@ -11,7 +11,7 @@ class CiscoNexus(CiscoBase):
 
     info = PluginInfo(
             vendor="cisco",
-            model="n.*",
+            model="(nexus|n\\d+k)",
             version="base",
             description="Cisco Nexus Plugin"
         )

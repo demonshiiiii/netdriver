@@ -11,7 +11,7 @@ class MaiPuNSS(MaiPuBase):
 
     info = PluginInfo(
             vendor="maipu",
-            model="nss.*",
+            model="nss",
             version="base",
             description="MaiPu NSS Plugin"
         )

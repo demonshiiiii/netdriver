@@ -11,7 +11,7 @@ class CiscoISR(CiscoBase):
 
     info = PluginInfo(
             vendor="cisco",
-            model="isr.*",
+            model="isr",
             version="base",
             description="Cisco ISR Plugin"
         )

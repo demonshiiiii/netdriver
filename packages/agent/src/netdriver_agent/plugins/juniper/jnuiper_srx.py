@@ -10,7 +10,7 @@ class JuniperSRX(JuniperBase):
 
     info = PluginInfo(
         vendor="juniper",
-        model="srx.*",
+        model="srx",
         version="base",
         description="Juniper SRX Plugin"
     )

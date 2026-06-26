@@ -10,7 +10,7 @@ class TopSecNGFW(TopSecBase):
 
     info = PluginInfo(
         vendor="topsec",
-        model="ngfw.*",
+        model="ngfw",
         version="base",
         description="TopSec NGFW Plugin"
     )

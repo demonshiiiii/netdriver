@@ -13,7 +13,7 @@ class FortinetFortiGate(FortinetBase):
 
     info = PluginInfo(
         vendor="fortinet",
-        model="fortigate.*",
+        model="fortigate",
         version="base",
         description="Fortinet FortiGate Plugin"
     )

@@ -9,7 +9,7 @@ class HuaweiCE(HuaweiBase):
     """ Huawei CE Plugin """
     info = PluginInfo(
         vendor="huawei",
-        model="ce.*",
+        model="ce",
         version="base",
         description="Huawei CE Plugin"
     )

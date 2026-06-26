@@ -39,15 +39,15 @@ Cisco:
   command: "show version"
   template: |
     Value HOSTNAME (\S+)
-    Value MODEL (\S+)
+    Value MODEL (.+)
     Value VERSION (\S+)
     Value SERIAL (\S+)
 
     Start
       ^.*Software Version ${VERSION}
-      ^[Hh]ardware:\s*${MODEL},
+      ^Model Id:\s*${MODEL}
       ^[Ss]erial [Nn]umber: ${SERIAL}
-      ^\s*[Cc]isco ${MODEL}
+      ^\s*[Cc]isco ${MODEL} Chassis
       ^\s*NXOS: version ${VERSION}
       ^\s*Processor Board ID ${SERIAL}
       ^${HOSTNAME}(>|#) -> Record
@@ -98,3 +98,14 @@ Paloalto:
       ^model: ${MODEL}
       ^serial: ${SERIAL}
       ^sw-version: ${VERSION} -> Record
+Juniper:
+  command: "show version"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (\S+)
+    Value VERSION (\S+)
+
+    Start
+      ^Hostname: ${HOSTNAME}
+      ^Model: ${MODEL}
+      ^Junos: ${VERSION} -> Record

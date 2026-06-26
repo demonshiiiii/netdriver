@@ -11,7 +11,7 @@ class VenustechUSG(VenustechBase):
 
     info = PluginInfo(
             vendor="venustech",
-            model="usg.*",
+            model="usg",
             version="base",
             description="Venustech USG Plugin"
         )

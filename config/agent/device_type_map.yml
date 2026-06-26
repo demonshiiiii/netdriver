@@ -5,9 +5,11 @@ Aruba:
 Check Point:
   gaia: firewall
 Cisco:
+  ncs: router
   n: switch
   asa: firewall
   isr: router
+  asr: router
 Fortinet:
   fortigate: firewall
 Hillstone:
@@ -20,3 +22,6 @@ Paloalto:
   pa: firewall
 Juniper:
   srx: firewall
+  qfx: switch
+  ex: switch
+  mx: router

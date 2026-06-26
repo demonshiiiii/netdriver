@@ -10,7 +10,7 @@ class ArubaCX(ArubaBase):
 
     info = PluginInfo(
         vendor="aruba",
-        model=".*cx.*",
+        model="cx",
         version="base",
         description="Aruba CX Plugin"
     )

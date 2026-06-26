@@ -10,7 +10,7 @@ class JuniperQFX(JuniperBase):
 
     info = PluginInfo(
         vendor="juniper",
-        model="qfx.*",
+        model="qfx",
         version="base",
         description="Juniper QFX Plugin"
     )

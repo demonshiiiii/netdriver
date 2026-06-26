@@ -67,7 +67,7 @@ class PluginEngine:
             log.debug(f"model plugins are empty for {key}, try to find {model} re match")
             for plugin_key in IPluginRegistry.plugin_registries.keys():
                 plugin_vendor, plugin_model = plugin_key.split("/")
-                if plugin_vendor == vendor and re.match(plugin_model, model):
+                if plugin_vendor == vendor and re.search(plugin_model, model):
                     model_plugins = IPluginRegistry.plugin_registries.get(plugin_key, [])
                     break
             if not model_plugins:

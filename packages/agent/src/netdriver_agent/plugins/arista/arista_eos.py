@@ -11,7 +11,7 @@ class AristaEOS(AristaBase):
 
     info = PluginInfo(
             vendor="arista",
-            model=".*eos.*",
+            model="eos",
             version="base",
             description="Arista EOS Plugin"
         )

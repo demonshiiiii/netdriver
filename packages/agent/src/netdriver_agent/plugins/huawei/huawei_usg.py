@@ -13,7 +13,7 @@ class HuaweiUSG(HuaweiBase):
 
     info = PluginInfo(
         vendor="huawei",
-        model="usg.*",
+        model="usg",
         version="base",
         description="Huawei USG Plugin"
     )

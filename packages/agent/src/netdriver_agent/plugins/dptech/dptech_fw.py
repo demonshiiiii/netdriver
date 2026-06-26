@@ -10,7 +10,7 @@ class DptechFWPath(DptechBase):
 
     info = PluginInfo(
         vendor="dptech",
-        model="fw.*",
+        model="fw",
         version="base",
         description="Dptech FW Plugin"
     )

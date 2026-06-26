@@ -10,7 +10,7 @@ class JuniperEX(JuniperBase):
 
     info = PluginInfo(
         vendor="juniper",
-        model="ex.*",
+        model="ex",
         version="base",
         description="Juniper EX Plugin"
     )

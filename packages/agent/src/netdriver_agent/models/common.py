@@ -8,23 +8,23 @@ from pydantic import BaseModel, Field, IPvAnyAddress, field_validator, model_val
 
 _VENDOR_MODELS = {
     "array": ["ag", "apv"],
-    "cisco": ["n.*", "isr.*", "asr.*", "catalyst", "asa"],
-    "huawei": ["usg.*", "ce.*"],
-    "h3c": ["secpath", "vsr.*", "s5130s.*"],
-    "hillstone": ["sg.*"],
-    "juniper": ["ex.*", "qfx.*", "mx.*", "srx.*"],
-    "paloalto": ["pa.*"],
-    "fortinet": ["fortigate.*"],
-    "arista": [".*eos.*"],
+    "cisco": ["nexus", "(n\d+k)", "isr", "asr", "catalyst", "asa"],
+    "huawei": ["usg", "ce"],
+    "h3c": ["secpath", "vsr", "(s\d+)"],
+    "hillstone": ["sg"],
+    "juniper": ["ex", "qfx", "mx", "srx"],
+    "paloalto": ["pa"],
+    "fortinet": ["fortigate"],
+    "arista": ["eos"],
     "check point": ["security gateway", "gaia"],
-    "dptech": ["fw.*"],
-    "maipu": ["nss.*"],
-    "qianxin": ["nsg.*"],
-    "venustech": ["usg.*"],
-    "chaitin": ["ctdsg.*"],
-    "topsec": ["ngfw.*"],
-    "leadsec": ["power.*"],
-    "aruba": [".*cx.*"],
+    "dptech": ["fw"],
+    "maipu": ["nss"],
+    "qianxin": ["nsg"],
+    "venustech": ["usg"],
+    "chaitin": ["ctdsg"],
+    "topsec": ["ngfw"],
+    "leadsec": ["power"],
+    "aruba": ["cx"],
 }
 _VENDOR_PATTERNS = "|".join(_VENDOR_MODELS.keys())
 _models = set()
@@ -96,6 +96,6 @@ class CommonRequest(BaseModel):
     @model_validator(mode="after")
     def check_vendor_model(self) -> Self:
         for pattern in _VENDOR_MODELS.get(self.vendor, []):
-            if re.match(pattern, self.model):
+            if re.search(pattern, self.model):
                 return self
         raise ValueError(f"unsupported model {self.model} for vendor {self.vendor}.")

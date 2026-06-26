@@ -10,7 +10,7 @@ class HillstoneSG(HillstoneBase):
 
     info = PluginInfo(
         vendor="hillstone",
-        model="sg.*",
+        model="sg",
         version="base",
         description="Hillstone SG Plugin"
     )

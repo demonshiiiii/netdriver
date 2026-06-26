@@ -11,7 +11,7 @@ class ChaiTinCTDSG(ChaiTinBase):
 
     info = PluginInfo(
             vendor="chaitin",
-            model="ctdsg.*",
+            model="ctdsg",
             version="base",
             description="ChaiTin CTDSG Plugin"
         )

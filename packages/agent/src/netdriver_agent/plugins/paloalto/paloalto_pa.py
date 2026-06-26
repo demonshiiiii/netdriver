@@ -12,7 +12,7 @@ class PaloaltoPa(PaloaltoBase):
 
     info = PluginInfo(
         vendor="paloalto",
-        model="pa.*",
+        model="pa",
         version="base",
         description="Paloalto PA Plugin"
     )

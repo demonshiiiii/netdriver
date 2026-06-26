@@ -40,6 +40,13 @@ vendors:
   Juniper:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.2636
+    model_oids:
+      - 1.3.6.1.4.1.2636.3.40.1.4.1.1.1.8.0
+    version_oids:
+      - 1.3.6.1.4.1.2636.3.40.1.4.1.1.1.5.0
+    serial_number_oids:
+      - 1.3.6.1.4.1.2636.3.1.3.0
+      - 1.3.6.1.4.1.2636.3.40.1.4.1.1.1.2.0
   Hillstone:
     sysobjectid_prefixes:
       - 1.3.6.1.4.1.28557
