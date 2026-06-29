@@ -69,3 +69,12 @@ Juniper:
 
         Start
           ^.+ Inc. ${MODEL} .+ JUNOS ${VERSION}, -> Record
+Cisco:
+  rules:
+    - oid: "1.3.6.1.2.1.1.1.0"
+      template: |
+        Value MODEL (\S+)
+        Value VERSION (\S+)
+
+        Start
+          ^Cisco IOS Software, ${MODEL} .+ Version ${VERSION},  -> Record

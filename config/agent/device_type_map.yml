@@ -5,8 +5,8 @@ Aruba:
 Check Point:
   gaia: firewall
 Cisco:
-  ncs: router
-  n: switch
+  (catelyst|c\d+): switch
+  (nexus|n\d+k): switch
   asa: firewall
   isr: router
   asr: router

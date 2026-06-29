@@ -44,12 +44,13 @@ Cisco:
     Value SERIAL (\S+)
 
     Start
-      ^.*Software Version ${VERSION}
+      ^.*Software(,)? Version ${VERSION}
       ^Model Id:\s*${MODEL}
       ^[Ss]erial [Nn]umber: ${SERIAL}
       ^\s*[Cc]isco ${MODEL} Chassis
+      ^\s*[Cc]isco ${MODEL} \(.+\) processor
       ^\s*NXOS: version ${VERSION}
-      ^\s*Processor Board ID ${SERIAL}
+      ^\s*Processor [Bb]oard ID ${SERIAL}
       ^${HOSTNAME}(>|#) -> Record
 Fortinet:
   command: "get system status"

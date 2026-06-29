@@ -11,7 +11,7 @@ class CiscoCatalyst(CiscoBase):
 
     info = PluginInfo(
             vendor="cisco",
-            model="catalyst",
+            model="(catalyst|c\\d+)",
             version="base",
             description="Cisco Catalyst Plugin"
         )
