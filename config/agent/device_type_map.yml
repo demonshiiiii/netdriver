@@ -15,9 +15,9 @@ Fortinet:
 Hillstone:
   sg: firewall
 Huawei:
-  s: switch
-  ce: switch
   usg: firewall
+  ce: switch
+  s: switch
 Paloalto:
   pa: firewall
 Juniper:
@@ -25,3 +25,7 @@ Juniper:
   qfx: switch
   ex: switch
   mx: router
+H3C:
+  secpath: firewall
+  sr: router
+  (v|s): switch

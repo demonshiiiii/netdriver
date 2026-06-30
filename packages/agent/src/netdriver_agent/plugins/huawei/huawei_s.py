@@ -2,17 +2,16 @@
 # -*- coding: utf-8 -*-
 
 from netdriver_core.plugin.plugin_info import PluginInfo
-from netdriver_agent.plugins.h3c import H3CBase
+from netdriver_agent.plugins.huawei import HuaweiBase
 
 
-class H3CS(H3CBase):
-    """ H3C S Series Plugin """
-
+class HuaweiS(HuaweiBase):
+    """ Huawei S Series Plugin """
     info = PluginInfo(
-        vendor="h3c",
-        model="([vs]\\d+)",
+        vendor="huawei",
+        model="s",
         version="base",
-        description="H3C S Series Plugin"
+        description="Huawei S Series Plugin"
     )
 
     def __init__(self, *args, **kwargs):

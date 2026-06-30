@@ -110,3 +110,14 @@ Juniper:
       ^Hostname: ${HOSTNAME}
       ^Model: ${MODEL}
       ^Junos: ${VERSION} -> Record
+H3C:
+  command: "display version"
+  template: |
+    Value HOSTNAME (\S+)
+    Value MODEL (.+)
+    Value VERSION (\S+)
+                            
+    Start
+      ^.+[Ss]oftware, [Vv]ersion ${VERSION},
+      ^H3C ${MODEL} uptime
+      ^<${HOSTNAME}> -> Record

@@ -205,7 +205,7 @@ class NmapScanner:
             f"{scan_types} -sV --version-intensity 0 -T4 "
             f"-p {port_spec} --max-retries 2 --host-timeout 30s"
         )
-        nm.scan(hosts=target, arguments=arguments, sudo=True)
+        nm.scan(hosts=target, arguments=arguments)
         return {host: nm[host] for host in nm.all_hosts()}
 
     @classmethod

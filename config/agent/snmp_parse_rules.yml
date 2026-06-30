@@ -28,10 +28,12 @@ Huawei:
   rules:
     - oid: "1.3.6.1.2.1.1.1.0"
       template: |
+        Value MODEL (\S+)
         Value VERSION (\S+)
 
         Start
-          ^[Ss]oftware [Vv]ersion:.* ${VERSION} -> Record
+          ^.+[Vv]ersion.* \(${MODEL} ${VERSION}\) -> Record
+          ^.+[Vv]ersion.* ${MODEL} ${VERSION} -> Record
 Check Point:
   rules:
     - oid: "1.3.6.1.2.1.25.6.3.1.2.118"
@@ -78,3 +80,13 @@ Cisco:
 
         Start
           ^Cisco IOS Software, ${MODEL} .+ Version ${VERSION},  -> Record
+H3C:
+  rules:
+    - oid: "1.3.6.1.2.1.1.1.0"
+      template: |
+        Value MODEL (.+)
+        Value VERSION (\S+)
+
+        Start
+          ^.+Version ${VERSION},
+          ^H3C ${MODEL} -> Record
