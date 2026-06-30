@@ -28,7 +28,7 @@ Huawei:
   rules:
     - oid: "1.3.6.1.2.1.1.1.0"
       template: |
-        Value MODEL (\S+)
+        Value MODEL (.+)
         Value VERSION (\S+)
 
         Start

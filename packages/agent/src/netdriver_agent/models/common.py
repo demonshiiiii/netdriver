@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, IPvAnyAddress, field_validator, model_val
 _VENDOR_MODELS = {
     "array": ["ag", "apv"],
     "cisco": ["nexus", "(n\d+k)", "isr", "asr", "catalyst", "(c\d+)", "asa"],
-    "huawei": ["usg", "ce", "s"],
+    "huawei": ["usg", "ce", "s", "ar", "netengine"],
     "h3c": ["secpath", "sr", "([vs]\d+)"],
     "hillstone": ["sg"],
     "juniper": ["ex", "qfx", "mx", "srx"],

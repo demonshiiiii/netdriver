@@ -17,6 +17,8 @@ Hillstone:
 Huawei:
   usg: firewall
   ce: switch
+  netengine: router
+  ar: router
   s: switch
 Paloalto:
   pa: firewall

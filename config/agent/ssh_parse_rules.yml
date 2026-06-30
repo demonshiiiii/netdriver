@@ -80,7 +80,7 @@ Huawei:
   command: "display version"
   template: |
     Value HOSTNAME (\S+)
-    Value MODEL (\S+)
+    Value MODEL (.+)
     Value VERSION (\S+)
                             
     Start
