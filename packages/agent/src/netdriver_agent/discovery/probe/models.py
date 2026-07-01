@@ -95,6 +95,7 @@ class SnmpProbeResult:
     """Result of an SNMP probe."""
     success: bool
     host: str
+    snmp_result: dict[str, str]
     community: str = ""
     credential: SnmpCredential | None = None
     device_info: DeviceInfo | None = None

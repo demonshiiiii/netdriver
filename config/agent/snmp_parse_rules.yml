@@ -5,16 +5,10 @@ Fortinet:
     - oid: "1.3.6.1.2.1.47.1.1.1.1.10.1"
       template: |
         Value MODEL (\S+)
-
-        Start
-          ^${MODEL} -> Record
-
-    - oid: "1.3.6.1.2.1.47.1.1.1.1.10.1"
-      template: |
         Value VERSION ([Vv][\d\.]+)
 
         Start
-          ^.*${VERSION}, -> Record
+          ^${MODEL} ${VERSION} -> Record
 Aruba:
   rules:
     - oid: "1.3.6.1.2.1.1.1.0"

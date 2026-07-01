@@ -871,43 +871,89 @@ class DiscoveryTaskWorker:
             return None
 
         vendor = identifier.identify_by_oid(result.sys_object_id)
-        model = ""
-        version = ""
+
+        device_data = {
+            "vendor": vendor or "",
+            "credential_name": result.credential.name if result.credential else "",
+            "hostname": result.sys_name,
+            "community": result.community,
+            "raw_data": result.sys_descr
+        }
 
         if vendor and result.credential is not None:
             detail_oids = get_vendor_snmp_detail_oids(vendor)
+
+            oids: list[str] = []
+            for oid_list in detail_oids.values():
+                oids.extend(oid_list)
+
+            rules = get_snmp_parse_rules(vendor)
+            log.debug(
+                    f"Discovery SNMP parse rules start for {host}:{port} "
+                    f"vendor={vendor!r} rule_count={len(rules)}"
+                )
+
+            for rule in rules:
+                if rule.oid not in oids and rule.oid not in result.snmp_result:
+                    oids.append(rule.oid)
+
             detail_data = await self._fetch_snmp_detail_data(
                 host,
                 port,
                 result.credential,
-                detail_oids,
+                oids
             )
-            model = self._extract_oid_values(detail_data, detail_oids.get("model"))
-            version = self._extract_oid_values(detail_data, detail_oids.get("version"))
-            serial_number = self._extract_oid_values(detail_data, detail_oids.get("serial_number"))
-        else:
-            serial_number = ""
 
-        device_data = {
-            "vendor": vendor or "",
-            "model": model,
-            "version": version,
-            "device_type": "",
-            "serial_number": serial_number,
-            "credential_name": result.credential.name if result.credential else "",
-            "hostname": result.sys_name,
-            "community": result.community,
-            "raw_data": result.sys_descr,
-        }
-        if vendor and result.credential is not None:
-            parsed_fields = await self._run_snmp_parse_rules(
-                host=host,
-                port=port,
-                credential=result.credential,
-                vendor_key=vendor,
+            detail_data = result.snmp_result | detail_data
+
+            device_data["model"] = self._extract_oid_values(detail_data, detail_oids.get("model"))
+            device_data["version"] = self._extract_oid_values(detail_data, detail_oids.get("version"))
+            device_data["serial_number"] = self._extract_oid_values(detail_data, detail_oids.get("serial_number"))
+            
+            parsed_fields: DiscoveryFieldMap = {}
+            for rule in rules:
+                log.debug(
+                    f"Discovery SNMP parse rule request for {host}:{port} "
+                    f"vendor={vendor!r} oid={rule.oid!r}"
+                )
+
+                raw = detail_data.get(rule.oid, "")
+                if not raw:
+                    log.debug(
+                        f"Discovery SNMP parse rule response missing raw for {host}:{port} "
+                        f"oid={rule.oid!r}"
+                    )
+                    continue
+
+                log.debug(
+                    f"Discovery SNMP parse rule response for {host}:{port} "
+                    f"oid={rule.oid!r} raw={raw!r}"
+                )
+
+                try:
+                    parsed_result = parse_discovery_template(rule.template, raw)
+                    log.debug(
+                        f"Discovery SNMP parse rule parsed fields for {host}:{port} "
+                        f"oid={rule.oid!r} fields={parsed_result!r}"
+                    )
+                    
+                    self._merge_discovery_fields(
+                        parsed_fields,
+                        parsed_result,
+                    )
+                except Exception as exc:
+                    log.warning(
+                        "Discovery SNMP parse rule for OID %r failed for %s:%s: %s",
+                        rule.oid,
+                        host,
+                        port,
+                        exc,
+                    )
+            log.debug(
+                f"Discovery SNMP parse rules final fields for {host}:{port} "
+                f"vendor={vendor!r} fields={parsed_fields!r}"
             )
             self._apply_parsed_fields(device_data, parsed_fields)
-
         return device_data
 
     async def _probe_snmp_system_info(
@@ -961,6 +1007,7 @@ class DiscoveryTaskWorker:
                 sys_object_id=sys_object_id,
                 sys_descr=sys_descr,
                 sys_name=sys_name,
+                snmp_result=result.data
             )
 
         log.info(f"SNMP probe {host}: all credentials failed")
@@ -975,12 +1022,9 @@ class DiscoveryTaskWorker:
         host: str,
         port: int,
         credential: SnmpCredential,
-        detail_oids: dict[str, list[str]],
+        oids: list[str]
     ) -> dict[str, str]:
         """Fetch vendor model/version OIDs when configured."""
-        oids: list[str] = []
-        for oid_list in detail_oids.values():
-            oids.extend(oid_list)
         if not oids:
             return {}
 
@@ -1040,77 +1084,6 @@ class DiscoveryTaskWorker:
         }
 
         return device_data
-
-    async def _run_snmp_parse_rules(
-        self,
-        *,
-        host: str,
-        port: int,
-        credential: SnmpCredential,
-        vendor_key: str,
-    ) -> DiscoveryFieldMap:
-        """Execute configured SNMP parse rules for a vendor."""
-        parsed_fields: DiscoveryFieldMap = {}
-        rules = get_snmp_parse_rules(vendor_key)
-        if rules:
-            log.debug(
-                f"Discovery SNMP parse rules start for {host}:{port} "
-                f"vendor={vendor_key!r} rule_count={len(rules)}"
-            )
-
-        for rule in rules:
-            log.debug(
-                f"Discovery SNMP parse rule request for {host}:{port} "
-                f"vendor={vendor_key!r} oid={rule.oid!r}"
-            )
-            result = await self._snmp_client.get(host, credential, [rule.oid], port=port)
-            if not result.success or not result.data:
-                log.debug(
-                    f"Discovery SNMP parse rule response empty for {host}:{port} "
-                    f"oid={rule.oid!r} success={result.success} data={result.data!r}"
-                )
-                continue
-
-            raw_value = result.data.get(rule.oid) or next(iter(result.data.values()), "")
-            if not raw_value:
-                log.debug(
-                    f"Discovery SNMP parse rule response missing raw value for {host}:{port} "
-                    f"oid={rule.oid!r} data={result.data!r}"
-                )
-                continue
-
-            log.debug(
-                f"Discovery SNMP parse rule response for {host}:{port} "
-                f"oid={rule.oid!r} raw_value={raw_value!r}"
-            )
-
-            try:
-                parsed_result = parse_discovery_template(rule.template, raw_value)
-                log.debug(
-                    f"Discovery SNMP parse rule parsed fields for {host}:{port} "
-                    f"oid={rule.oid!r} fields={parsed_result!r}"
-                )
-                self._merge_discovery_fields(
-                    parsed_fields,
-                    parsed_result,
-                )
-            except Exception as exc:
-                log.warning(
-                    "Discovery SNMP parse rule for OID %r failed for %s:%s: %s",
-                    rule.oid,
-                    host,
-                    port,
-                    exc,
-                )
-
-        if vendor_key and not parsed_fields.get("vendor"):
-            parsed_fields["vendor"] = vendor_key
-        if rules:
-            log.debug(
-                f"Discovery SNMP parse rules final fields for {host}:{port} "
-                f"vendor={vendor_key!r} fields={parsed_fields!r}"
-            )
-        return parsed_fields
 
     @staticmethod
     def _merge_discovery_fields(
