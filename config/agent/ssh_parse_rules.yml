@@ -11,7 +11,7 @@ Arista:
       ^Arista\s+${MODEL}
       ^[Ss]oftware image version:\s*${VERSION}
       ^[Ss]erial number:\s*${SERIAL}
-      ^Hostname:\s*${HOSTNAME} -> Record
+      ^[Hh]ostname:\s*${HOSTNAME} -> Record
 Aruba:
   command: "show system"
   template: |
@@ -34,7 +34,7 @@ Check Point:
 
     Start
       ^[Pp]roduct [Vv]ersion Check Point ${MODEL} ${VERSION}
-      ^${HOSTNAME}> -> Record
+      ^(\[.+\])?\s*${HOSTNAME}> -> Record
 Cisco:
   command: "show version"
   template: |
@@ -85,7 +85,7 @@ Huawei:
                             
     Start
       ^.+[Ss]oftware, [Vv]ersion \S+ \(${MODEL} ${VERSION}\)
-      ^<${HOSTNAME}> -> Record
+      ^.*<${HOSTNAME}> -> Record
 Paloalto:
   command: "show system info"
   template: |
@@ -120,4 +120,4 @@ H3C:
     Start
       ^.+[Ss]oftware, [Vv]ersion ${VERSION},
       ^H3C ${MODEL} uptime
-      ^<${HOSTNAME}> -> Record
+      ^.*<${HOSTNAME}> -> Record
