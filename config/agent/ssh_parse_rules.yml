@@ -1,6 +1,6 @@
 # Vendor keyed SSH parse rules.
 Arista:
-  command: "show version"
+  command: "show version\nshow hostname"
   template: |
     Value HOSTNAME (\S+)
     Value MODEL (\S+)
@@ -11,7 +11,7 @@ Arista:
       ^Arista\s+${MODEL}
       ^[Ss]oftware image version:\s*${VERSION}
       ^[Ss]erial number:\s*${SERIAL}
-      ^${HOSTNAME}(>|#) -> Record
+      ^Hostname:\s*${HOSTNAME} -> Record
 Aruba:
   command: "show system"
   template: |

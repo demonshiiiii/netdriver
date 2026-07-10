@@ -234,15 +234,20 @@ class SshProbe:
                     f"SSH probe {host}:{port}: running probe command {probe_cmd!r} "
                     f"with {plugin_cls.__name__}"
                 )
-                process.stdin.write(probe_cmd + "\n")
-                probe_output = await asyncio.wait_for(
-                    self._read_until_prompt(process, probe_cmd, union_pattern),
-                    timeout=read_timeout,
-                )
-                log.debug(
-                    f"SSH probe {host}:{port}: probe command {probe_cmd!r} "
-                    f"output: {probe_output}"
-                )
+                cmds = probe_cmd.splitlines()
+                outputs = []
+                for cmd in cmds:
+                    process.stdin.write(cmd + "\n")
+                    output = await asyncio.wait_for(
+                        self._read_until_prompt(process, cmd, union_pattern),
+                        timeout=read_timeout,
+                    )
+                    log.debug(
+                        f"SSH probe {host}:{port}: probe command {cmd!r} "
+                        f"output: {output}"
+                    )
+                    outputs.append(output)
+                probe_output = ''.join(outputs)
             except asyncio.TimeoutError:
                 log.debug(f"SSH probe {host}:{port}: probe command timeout for {plugin_cls.__name__}")
 
