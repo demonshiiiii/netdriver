@@ -241,7 +241,7 @@ class SshProbe:
                 )
                 log.debug(
                     f"SSH probe {host}:{port}: probe command {probe_cmd!r} "
-                    f"returned {len(probe_output)} character(s)"
+                    f"output: {probe_output}"
                 )
             except asyncio.TimeoutError:
                 log.debug(f"SSH probe {host}:{port}: probe command timeout for {plugin_cls.__name__}")
