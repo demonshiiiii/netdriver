@@ -45,7 +45,11 @@ def simulate_output(input: str) -> str:
     line = ""
     i = 0
     while i < length:
-        if is_carry_return(input[i:i+3]):
+        if is_carry_return(input[i:i+4]):
+            lines.append(line)
+            line = ""
+            i += 4
+        elif is_carry_return(input[i:i+3]):
             lines.append(line)
             line = ""
             i += 3
@@ -65,7 +69,7 @@ def simulate_output(input: str) -> str:
 
 
 def is_carry_return(escape: str) -> bool:
-    return escape == "\r\r\n" or escape == "\r\n"
+    return escape == "\r\r\r\n" or escape == "\r\r\n" or escape == "\r\n"
 
 
 def oct_to_chinese(oct_str: str, encoding: str ="gbk") -> str:
